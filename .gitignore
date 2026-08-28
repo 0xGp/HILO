@@ -1,6 +1,6 @@
 out/
 cache/
-lib/
+/lib/
 .DS_Store
 .hilo-wallet.json
 .env
