@@ -1,0 +1,11 @@
+out/
+cache/
+lib/
+.DS_Store
+.hilo-wallet.json
+.env
+*.pk
+node_modules/
+dist/
+
+
