@@ -29,6 +29,8 @@ import {
   verifyDeck
 } from './lib/rng.js';
 import { MIN_GAS_ETH, rhTx, robinhoodTestnet, robinhoodWalletChain, wagmiConfig } from './chain.js';
+import Landing from './Landing.jsx';
+import GameLoader from './GameLoader.jsx';
 
 function shortAddr(a) {
   if (!a) return '';
@@ -117,6 +119,7 @@ export default function App() {
   const { sendCallsAsync } = useSendCalls();
 
   const [view, setView] = useState('landing');
+  const [entering, setEntering] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [depositing, setDepositing] = useState(false);
@@ -409,20 +412,29 @@ export default function App() {
       });
 
       ping('Confirm deposit — one signature');
-      setDepositStatus('Confirm in your wallet. Approve + deposit are bundled in one call.');
+      const stepN = calls.length;
+      setDepositStatus(
+        stepN === 1
+          ? 'Confirm deposit in your wallet…'
+          : `Confirm once — ${stepN} steps bundled (clear · approve · deposit).`
+      );
       let batched = false;
       try {
         const result = await sendCallsAsync({
           calls,
-          chainId: robinhoodTestnet.id
+          chainId: robinhoodTestnet.id,
+          forceAtomic: calls.length > 1
         });
         batched = true;
         const id = typeof result === 'string' ? result : result.id;
         await waitForCallsStatus(wagmiConfig, { id });
       } catch (batchErr) {
         if (batched) throw batchErr;
-        setDepositStatus('Wallet has no batch. Sending the same deposit…');
+        // Wallet cannot EIP-5792 batch — fall back one tx at a time.
+        let step = 1;
+        const total = calls.length;
         if (leftover > 0n) {
+          setDepositStatus(`Confirm ${step}/${total}: clear leftover vault credit…`);
           const pullHash = await writeContractAsync({
             address: VAULT_CA,
             abi: VAULT_ABI,
@@ -431,8 +443,10 @@ export default function App() {
             ...rhTx(120_000n)
           });
           await waitForTransactionReceipt(wagmiConfig, { hash: pullHash });
+          step += 1;
         }
         if (allowance < ONE_HILO) {
+          setDepositStatus(`Confirm ${step}/${total}: approve 1 HILO…`);
           const approveHash = await writeContractAsync({
             address: HILO_CA,
             abi: ERC20_ABI,
@@ -441,7 +455,9 @@ export default function App() {
             ...rhTx(200_000n)
           });
           await waitForTransactionReceipt(wagmiConfig, { hash: approveHash });
+          step += 1;
         }
+        setDepositStatus(`Confirm ${step}/${total}: deposit into vault…`);
         const hash = await writeContractAsync({
           address: VAULT_CA,
           abi: VAULT_ABI,
@@ -622,55 +638,19 @@ export default function App() {
 
   return (
     <>
-      {view === 'landing' && (
-        <div id="view-landing">
-          <header className="landing-header">
-            <div className="logo">HILO</div>
-            <nav className="landing-nav">
-              <a className="nav-link" href="#how">How It Works</a>
-              <ConnectButton chainStatus="icon" showBalance={false} />
-            </nav>
-          </header>
-
-          <section className="hero grain" style={{ position: 'relative' }}>
-            <div className="hero-cards" aria-hidden="true">
-              <div className="hero-card c1"><span className="rank suit-black">7</span><span className="suit-lg suit-black">♠</span></div>
-              <div className="hero-card c2"><span className="rank suit-red">Q</span><span className="suit-lg suit-red">♦</span></div>
-              <div className="hero-card c3"><span className="rank suit-black">A</span><span className="suit-lg suit-black">♣</span></div>
-            </div>
-            <div className="hero-content">
-              <div className="eyebrow">Deposit 1 HILO ($20) · +3 / −3 points · 3 pts = 0.1 HILO · 0 points = out</div>
-              <h1 className="display">HILO</h1>
-              <div className="hero-sub display">Call it. Stack it. Pull it.</div>
-              <p className="hero-support">
-                Connect with RainbowKit. Buy in with 1 HILO. The vault holds the token.
-                Cards are shuffled with HMAC-SHA256 — not Math.random.
-              </p>
-              <div className="hero-ctas">
-                <button className="btn-primary" onClick={() => setView('game')}>PLAY</button>
-                <button className="btn-secondary" onClick={() => document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })}>HOW IT WORKS</button>
-              </div>
-            </div>
-            <div className="scroll-hint">Scroll · how it works</div>
-          </section>
-
-          <section className="how-section" id="how">
-            <h2 className="display">HOW IT WORKS</h2>
-            <div className="rule-row"><div className="rule-num">01</div><div className="rule-text">Connect wallet with <strong>RainbowKit</strong> on Robinhood Chain Testnet.</div></div>
-            <div className="rule-row"><div className="rule-num">02</div><div className="rule-text">Deposit is <strong>one wallet signature</strong>. 1 HILO ($20) goes into the vault. <strong>20%</strong> is forwarded to treasury; <strong>80% stays locked</strong>.</div></div>
-            <div className="rule-row"><div className="rule-num">03</div><div className="rule-text">Bet <strong>higher or lower</strong>. You have <strong>20 seconds</strong>. When the clock hits 0, the result pops up.</div></div>
-            <div className="rule-row"><div className="rule-num">04</div><div className="rule-text">Hit <strong className="logic-win">+3 points</strong>. Miss or timeout <strong className="logic-lose">−3 points</strong>. <strong>3 points = 0.1 HILO</strong> on withdraw. Hit <strong>0 points</strong> and you are out — deposit 1 HILO to enter again.</div></div>
-            <div className="rule-row"><div className="rule-num">05</div><div className="rule-text">Time up with points: <strong>withdraw or deposit</strong>. Time up at 0 or a bust: <strong>deposit — try again</strong>.</div></div>
-            <div style={{ textAlign: 'center', marginTop: 44 }}>
-              <button className="btn-primary" onClick={() => setView('game')}>PLAY</button>
-            </div>
-          </section>
-          <footer className="landing-footer">HILO — 1 HILO in · +3 / −3 points · 3 pts = 0.1 HILO · 0 = out</footer>
-        </div>
+      {view === 'landing' && <Landing onPlay={() => setEntering(true)} />}
+      {entering && (
+        <GameLoader
+          caption="ENTER THE GAME"
+          onDone={() => {
+            setView('game');
+            setEntering(false);
+          }}
+        />
       )}
 
       {view === 'game' && (
-        <div id="view-game">
+        <div id="view-game" className="game-in">
           <div className="game-topbar">
             <div className="logo">HILO</div>
             <div className="round-badge">ROUND #<span>{round || '—'}</span></div>
@@ -699,7 +679,7 @@ export default function App() {
                 <p className="predeal-note">Deposit 1 HILO ($20) to enter with 20 points. Hit +3. Miss −3. 3 points cash out as 0.1 HILO. At 0 points you are out and must deposit again.</p>
                 <div className="logic-card">
                   <h3>Game logic</h3>
-                  <div className="logic-line">1. <strong>Connect</strong> and deposit <strong>1 HILO ($20)</strong> — one signature.</div>
+                  <div className="logic-line">1. <strong>Connect</strong> and deposit <strong>1 HILO ($20)</strong>. Wallets that support batching sign once; others ask per step.</div>
                   <div className="logic-line">2. You start on <strong>20 points</strong>. <strong>20 seconds</strong> on the clock.</div>
                   <div className="logic-line">3. Hit <strong className="logic-win">+3 points</strong>. Miss <strong className="logic-lose">−3 points</strong>.</div>
                   <div className="logic-line">4. Withdraw: <strong>3 points = 0.1 HILO</strong> ({formatUsd(PEG_USD)} at peg).</div>
@@ -733,20 +713,22 @@ export default function App() {
             {active && current && (
               <div className="play-board">
                 <div className="play-hud">
-                  <button className="btn-cashout play-withdraw" disabled={points <= 0 || busy || depositing} onClick={onCashout}>
-                    {depositing ? 'CONFIRM' : 'WITHDRAW'}
-                  </button>
+                  <div className="hud-score">
+                    <div className="hud-score-pts display">
+                      {points}<span>pts</span>
+                      <span className={`last-delta hud-delta${lastDelta === POINT_DELTA ? ' win' : lastDelta === -POINT_DELTA || lastDelta === 'zero' ? ' lose' : ''}`}>
+                        {lastDelta === POINT_DELTA ? '+3' : lastDelta === -POINT_DELTA ? '−3' : lastDelta === 'zero' ? '0' : ''}
+                      </span>
+                    </div>
+                    <div className="hud-score-hilo">{formatHilo(cashHiloWei)} HILO</div>
+                  </div>
                   <div className={`decision-timer${secsLeft != null && secsLeft <= 10 ? ' urgent' : ''}${busy ? ' paused' : ''}`}>
                     <div className="decision-timer-num display">{secsLeft == null ? '—' : secsLeft}</div>
                     <div className="decision-timer-label">{busy ? 'wait' : 'sec'}</div>
                   </div>
-                  <div className="hud-score">
-                    <div className="hud-score-pts display">{points}<span>pts</span></div>
-                    <div className="hud-score-hilo">{formatHilo(cashHiloWei)} HILO</div>
-                    <div className={`last-delta${lastDelta === POINT_DELTA ? ' win' : lastDelta === -POINT_DELTA || lastDelta === 'zero' ? ' lose' : ''}`}>
-                      {lastDelta === POINT_DELTA ? '+3' : lastDelta === -POINT_DELTA ? '−3' : lastDelta === 'zero' ? '0' : '+3 / −3'}
-                    </div>
-                  </div>
+                  <button className="btn-cashout play-withdraw" disabled={points <= 0 || busy || depositing} onClick={onCashout}>
+                    {depositing ? 'CONFIRM' : 'WITHDRAW'}
+                  </button>
                 </div>
 
                 <div className="play-card-wrap">
@@ -768,8 +750,8 @@ export default function App() {
                 </div>
 
                 <div className="guess-row">
-                  <button className="btn-lower display" disabled={busy || current.rank === '2'} onClick={() => playGuess(false)}>LOWER ↓</button>
                   <button className="btn-higher display" disabled={busy || current.rank === 'A'} onClick={() => playGuess(true)}>HIGHER ↑</button>
+                  <button className="btn-lower display" disabled={busy || current.rank === '2'} onClick={() => playGuess(false)}>LOWER ↓</button>
                 </div>
               </div>
             )}
