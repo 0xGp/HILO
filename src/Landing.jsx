@@ -62,8 +62,8 @@ const BENTO = [
   {
     title: 'Twenty HP',
     body: 'Hit +3. Miss −3. Zero is a wipe. You pull your own stack.',
-    img: null,
-    tone: 'dark',
+    img: '/art/twenty-hp.png',
+    tone: 'photo portrait',
     stat: '20'
   }
 ];
@@ -497,7 +497,6 @@ export default function Landing({ onPlay }) {
           ))}
         </nav>
         <div className="nav-end">
-          <button className="btn-ink sm hide-sm" type="button" onClick={onPlay}>Enter <span>↗</span></button>
           <span className="hide-sm"><ConnectButton chainStatus="icon" showBalance={false} /></span>
           <button
             className={`burger${menu ? ' open' : ''}`}
@@ -528,28 +527,19 @@ export default function Landing({ onPlay }) {
         <div className="mobile-nav-foot">
           <ConnectButton chainStatus="icon" showBalance={false} />
           <button className="btn-ink" type="button" onClick={() => { setMenu(false); onPlay(); }}>
-            Enter match <span>↗</span>
+            Enter match
           </button>
         </div>
       </div>
 
       <CrypticZone className="lp-body">
       <section className="sec hero" id="hero">
-        <div className="hero-globe" aria-hidden="true">
-          <img
-            src="https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?auto=format&fit=crop&w=1600&q=60"
-            alt=""
-          />
-        </div>
         <Reveal as="p" className="eyebrow">Live on Robinhood testnet</Reveal>
         <Reveal delay={80} className="hero-brand-wrap">
           <CrypticText as="h1" className="hero-brand" label="HILO" tabIndex={0} />
         </Reveal>
-        <Reveal as="p" className="lede" delay={160}>
-          Call the next rank. Bank the stack. Higher or lower on a committed shoe — 1 HILO, 20 HP, 20 seconds.
-        </Reveal>
-        <Reveal className="ctas" delay={240}>
-          <button className="btn-ink" type="button" onClick={onPlay}>Enter match <span>↗</span></button>
+        <Reveal className="ctas" delay={160}>
+          <button className="btn-ink" type="button" onClick={onPlay}>Enter match</button>
           <a className="btn-ghost" href="#play">How it plays</a>
         </Reveal>
         <Reveal delay={320} className="hero-deck-wrap">
@@ -573,7 +563,7 @@ export default function Landing({ onPlay }) {
         </div>
         <Reveal as="p" className="lede tight" delay={180}>Same loop every round: buy-in, call, score, extract.</Reveal>
         <Reveal delay={220}>
-          <button className="btn-ink" type="button" onClick={onPlay}>Start a round <span>↗</span></button>
+          <button className="btn-ink" type="button" onClick={onPlay}>Start a round</button>
         </Reveal>
       </section>
 
@@ -627,7 +617,7 @@ export default function Landing({ onPlay }) {
                     <p className="k">0{i + 1} / 0{SLIDES.length}</p>
                     <h3>{s.title}</h3>
                     <p>{s.body}</p>
-                    <button className="btn-ink" type="button" onClick={onPlay}>Enter match <span>↗</span></button>
+                    <button className="btn-ink" type="button" onClick={onPlay}>Enter match</button>
                   </div>
                 </article>
               ))}
@@ -655,7 +645,7 @@ export default function Landing({ onPlay }) {
           <h2>Questions before the deal.</h2>
           <div className="faq-contact">
             <p>Still unclear? Open a round. The table teaches faster than copy.</p>
-            <button className="btn-ink dark" type="button" onClick={onPlay}>Enter match <span>↗</span></button>
+            <button className="btn-ink dark" type="button" onClick={onPlay}>Enter match</button>
           </div>
         </Reveal>
         <div className="faq-right">
@@ -679,7 +669,7 @@ export default function Landing({ onPlay }) {
         <div className="foot-top">
           <div>
             <CrypticText as="a" className="brand" href="#hero" label="HILO" />
-            <button className="btn-ink" type="button" onClick={onPlay}>Enter match <span>↗</span></button>
+            <button className="btn-ink" type="button" onClick={onPlay}>Enter match</button>
           </div>
           <div>
             <h4>Play</h4>
