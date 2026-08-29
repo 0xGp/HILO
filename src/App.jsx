@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ConnectButton, useConnectModal } from '@rainbow-me/rainbowkit';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { useAccount, useBalance, useReadContract, useSendCalls, useSwitchChain, useWriteContract } from 'wagmi';
 import { waitForCallsStatus } from '@wagmi/core';
 import { encodeFunctionData } from 'viem';
@@ -331,7 +331,7 @@ export default function App() {
   async function onDeposit() {
     if (!isConnected) {
       openConnectModal?.();
-      setDepositStatus('Connect with RainbowKit, then deposit 1 HILO.');
+      setDepositStatus('Connect your wallet, then tap deposit again.');
       return;
     }
     if (depositing) return;
@@ -656,7 +656,6 @@ export default function App() {
             <div className="round-badge">ROUND #<span>{round || '—'}</span></div>
             <div className="topbar-right">
               <button className="btn-ghost-sm" onClick={() => setRulesOpen(true)}>HOW TO PLAY</button>
-              <ConnectButton chainStatus="icon" showBalance={false} />
               <button className="btn-ghost-sm" onClick={() => { resetTable(); setView('landing'); }}>Exit</button>
             </div>
           </div>
@@ -679,25 +678,20 @@ export default function App() {
                 <p className="predeal-note">Deposit 1 HILO ($20) to enter with 20 points. Hit +3. Miss −3. 3 points cash out as 0.1 HILO. At 0 points you are out and must deposit again.</p>
                 <div className="logic-card">
                   <h3>Game logic</h3>
-                  <div className="logic-line">1. <strong>Connect</strong> and deposit <strong>1 HILO ($20)</strong>. Wallets that support batching sign once; others ask per step.</div>
+                  <div className="logic-line">1. Deposit <strong>1 HILO ($20)</strong>. Wallets that support batching sign once; others ask per step.</div>
                   <div className="logic-line">2. You start on <strong>20 points</strong>. <strong>20 seconds</strong> on the clock.</div>
                   <div className="logic-line">3. Hit <strong className="logic-win">+3 points</strong>. Miss <strong className="logic-lose">−3 points</strong>.</div>
                   <div className="logic-line">4. Withdraw: <strong>3 points = 0.1 HILO</strong> ({formatUsd(PEG_USD)} at peg).</div>
                   <div className="logic-line">5. <strong>0 points = out</strong>. Deposit 1 HILO to enter again.</div>
                 </div>
-                <div style={{ marginBottom: 12, width: '100%', maxWidth: 440, display: 'flex', justifyContent: 'center' }}>
-                  <ConnectButton />
-                </div>
-                <button className="btn-dealme display" disabled={depositing} onClick={onDeposit}>
+                <button className="btn-dealme display" disabled={depositing || (isConnected && (notEnoughGas || notEnoughHilo))} onClick={onDeposit}>
                   {depositing
                     ? 'CONFIRM IN WALLET'
-                    : !isConnected
-                      ? 'CONNECT & DEPOSIT $20 HILO'
-                      : notEnoughGas
-                        ? 'NOT ENOUGH GAS'
-                        : notEnoughHilo
-                          ? 'NOT ENOUGH HILO'
-                          : 'DEPOSIT $20 HILO'}
+                    : isConnected && notEnoughGas
+                      ? 'NOT ENOUGH GAS'
+                      : isConnected && notEnoughHilo
+                        ? 'NOT ENOUGH HILO'
+                        : 'DEPOSIT $20 HILO'}
                 </button>
                 <p className="predeal-note" style={{ marginTop: 14, marginBottom: 0 }}>
                   {notEnoughGas
