@@ -121,7 +121,13 @@ export default function App() {
   const [view, setView] = useState('landing');
   const [entering, setEntering] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [gameMenu, setGameMenu] = useState(false);
   const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    document.body.style.overflow = gameMenu ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [gameMenu]);
   const [depositing, setDepositing] = useState(false);
   const [depositStatus, setDepositStatus] = useState('');
   const [faceUp, setFaceUp] = useState(false);
@@ -650,13 +656,91 @@ export default function App() {
       )}
 
       {view === 'game' && (
-        <div id="view-game" className="game-in">
-          <div className="game-topbar">
-            <div className="logo">HILO</div>
-            <div className="round-badge">ROUND #<span>{round || '—'}</span></div>
-            <div className="topbar-right">
-              <button className="btn-ghost-sm" onClick={() => setRulesOpen(true)}>HOW TO PLAY</button>
-              <button className="btn-ghost-sm" onClick={() => { resetTable(); setView('landing'); }}>Exit</button>
+        <div id="view-game" className={`game-in${gameMenu ? ' menu-on' : ''}`}>
+          <header className="game-nav-shell">
+            <nav className="game-nav-bar" aria-label="Game">
+              <button
+                type="button"
+                className="game-brand"
+                onClick={() => { setGameMenu(false); resetTable(); setView('landing'); }}
+              >
+                HILO
+              </button>
+              <button
+                type="button"
+                className="game-nav-ca game-hide-sm"
+                onClick={async () => {
+                  try { await navigator.clipboard.writeText(VAULT_CA); } catch { /* ignore */ }
+                }}
+                aria-label="Copy vault address"
+              >
+                <span className="ca-mark" aria-hidden="true" />
+                CA: {shortAddr(VAULT_CA)}
+              </button>
+              <div className="game-nav-mid game-hide-sm">
+                <div className="round-badge">ROUND #<span>{round || '—'}</span></div>
+              </div>
+              <div className="game-nav-end">
+                <button
+                  type="button"
+                  className="game-nav-ca game-show-sm"
+                  onClick={async () => {
+                    try { await navigator.clipboard.writeText(VAULT_CA); } catch { /* ignore */ }
+                  }}
+                  aria-label="Copy vault address"
+                >
+                  <span className="ca-mark" aria-hidden="true" />
+                  CA
+                </button>
+                <button className="btn-ghost-sm game-hide-sm" type="button" onClick={() => setRulesOpen(true)}>How to play</button>
+                <button
+                  className="btn-ink-game sm game-hide-sm"
+                  type="button"
+                  onClick={() => { resetTable(); setView('landing'); }}
+                >
+                  Exit
+                </button>
+                <button
+                  className={`game-burger${gameMenu ? ' open' : ''}`}
+                  type="button"
+                  aria-label={gameMenu ? 'Close menu' : 'Open menu'}
+                  aria-expanded={gameMenu}
+                  onClick={() => setGameMenu((v) => !v)}
+                >
+                  <i /><i /><i />
+                </button>
+              </div>
+            </nav>
+          </header>
+
+          <div className={`game-mobile-nav${gameMenu ? ' open' : ''}`} aria-hidden={!gameMenu}>
+            <div className="game-mobile-nav-bg" aria-hidden="true" />
+            <nav className="game-mobile-nav-links" aria-label="Game mobile">
+              <button type="button" className="game-mobile-link" onClick={() => { setGameMenu(false); setRulesOpen(true); }}>
+                How to <span className="accent">play</span>
+              </button>
+              <div className="game-mobile-link" style={{ pointerEvents: 'none', opacity: 0.55, fontSize: 'clamp(18px,5vw,24px)', letterSpacing: '0.12em' }}>
+                ROUND #<span className="accent">{round || '—'}</span>
+              </div>
+              <button
+                type="button"
+                className="game-mobile-link"
+                onClick={() => { setGameMenu(false); resetTable(); setView('landing'); }}
+              >
+                Exit <span className="accent">match</span>
+              </button>
+            </nav>
+            <div className="game-mobile-nav-foot">
+              <button
+                type="button"
+                className="btn-ink-game"
+                onClick={async () => {
+                  try { await navigator.clipboard.writeText(VAULT_CA); } catch { /* ignore */ }
+                  setGameMenu(false);
+                }}
+              >
+                Copy vault CA
+              </button>
             </div>
           </div>
 

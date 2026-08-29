@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import GameLoader from './GameLoader.jsx';
+import { VAULT_CA } from './lib/constants.js';
 import './landing.css';
 
 const u = (id, w = 1400) =>
@@ -22,6 +23,190 @@ const LINKS = [
   { href: '#play', label: 'Play' },
   { href: '#faq', label: 'FAQ' }
 ];
+
+const HERO_FIXED = ['HIGHER', 'LOWER'];
+const HERO_WORDS = ['CALL', 'EXTRACT', 'MATCH', 'SCORE'];
+
+function HeroWord({ word, live = false, delayBase = 0 }) {
+  return (
+    <span className={`hero-word${live ? ' is-live' : ''}`}>
+      {word.split('').map((ch, i) => (
+        <span
+          key={`${word}-${i}`}
+          className={`hero-char${i === word.length - 1 ? ' accent' : ''}`}
+          style={live ? { animationDelay: `${delayBase + i * 45}ms` } : undefined}
+        >
+          {ch}
+        </span>
+      ))}
+      <span
+        className="hero-char accent"
+        style={live ? { animationDelay: `${delayBase + word.length * 45}ms` } : undefined}
+      >
+        .
+      </span>
+    </span>
+  );
+}
+
+function AccentText({ text, marks = [] }) {
+  if (!marks.length) return text;
+  const parts = [];
+  let cursor = 0;
+  const hits = marks
+    .map((mark) => ({ mark, at: text.indexOf(mark) }))
+    .filter((h) => h.at !== -1)
+    .sort((a, b) => a.at - b.at);
+  hits.forEach(({ mark, at }) => {
+    if (at < cursor) return;
+    if (at > cursor) parts.push(text.slice(cursor, at));
+    parts.push(<span key={`${mark}-${at}`} className="accent">{mark}</span>);
+    cursor = at + mark.length;
+  });
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts.length ? parts : text;
+}
+
+function shortCa(addr, head = 6, tail = 4) {
+  if (!addr || addr.length < head + tail + 2) return addr || '';
+  return `${addr.slice(0, head)}…${addr.slice(-tail)}`;
+}
+
+function CaPill({ address, className = '', compact = false, full = false }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch { /* ignore */ }
+  };
+  const label = compact
+    ? 'CA'
+    : full
+      ? `CA: ${address}`
+      : `CA: ${shortCa(address, 10, 8)}`;
+  return (
+    <button type="button" className={`ca-pill${compact ? ' ca-pill-compact' : ''}${className ? ` ${className}` : ''}`} onClick={copy} aria-label="Copy vault address">
+      <span className="ca-mark" aria-hidden="true" />
+      <span className="ca-text">{label}</span>
+      {!compact && <span className="ca-copy" aria-hidden="true">{copied ? '✓' : '⧉'}</span>}
+    </button>
+  );
+}
+
+function AnimatedSphere() {
+  const canvasRef = useRef(null);
+  const frameRef = useRef(0);
+  const runningRef = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || runningRef.current) return undefined;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return undefined;
+    runningRef.current = true;
+
+    const chars = '░▒▓█│─┤├┴┬·';
+    let time = 0;
+    let alive = true;
+
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.max(1, Math.floor(rect.width));
+      const h = Math.max(1, Math.floor(rect.height));
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    const render = () => {
+      if (!alive) return;
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+      if (w < 2 || h < 2) {
+        frameRef.current = requestAnimationFrame(render);
+        return;
+      }
+
+      ctx.clearRect(0, 0, w, h);
+
+      const centerX = w / 2;
+      const centerY = h / 2;
+      const radius = Math.min(w, h) * 0.46;
+      const mobile = w < 520;
+      const step = mobile ? 0.13 : 0.1;
+
+      // Clip to a clean circle so the sphere never looks broken / doubled
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius + 2, 0, Math.PI * 2);
+      ctx.clip();
+
+      ctx.font = `${mobile ? 9 : 11}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const points = [];
+
+      for (let phi = 0; phi < Math.PI * 2; phi += step) {
+        for (let theta = 0; theta < Math.PI; theta += step) {
+          const x = Math.sin(theta) * Math.cos(phi + time * 0.5);
+          const y = Math.sin(theta) * Math.sin(phi + time * 0.5);
+          const z = Math.cos(theta);
+
+          const rotY = time * 0.28;
+          const newX = x * Math.cos(rotY) - z * Math.sin(rotY);
+          const newZ = x * Math.sin(rotY) + z * Math.cos(rotY);
+
+          const rotX = time * 0.18;
+          const newY = y * Math.cos(rotX) - newZ * Math.sin(rotX);
+          const finalZ = y * Math.sin(rotX) + newZ * Math.cos(rotX);
+
+          const depth = (finalZ + 1) / 2;
+          const charIndex = Math.floor(depth * (chars.length - 1));
+
+          points.push({
+            x: centerX + newX * radius,
+            y: centerY + newY * radius,
+            z: finalZ,
+            char: chars[charIndex]
+          });
+        }
+      }
+
+      points.sort((a, b) => a.z - b.z);
+      points.forEach((point) => {
+        const depth = (point.z + 1) / 2;
+        const alpha = 0.2 + depth * 0.75;
+        ctx.fillStyle = `rgba(232, 120, 48, ${Math.min(0.35 + depth * 0.65, 0.98)})`;
+        if (depth < 0.35) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(alpha * 0.55, 0.55)})`;
+        }
+        ctx.fillText(point.char, point.x, point.y);
+      });
+
+      ctx.restore();
+      time += mobile ? 0.014 : 0.018;
+      frameRef.current = requestAnimationFrame(render);
+    };
+
+    render();
+    return () => {
+      alive = false;
+      runningRef.current = false;
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(frameRef.current);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="hero-sphere-canvas" aria-hidden="true" />;
+}
 
 const SLIDES = [
   {
@@ -462,9 +647,19 @@ export default function Landing({ onPlay }) {
     try { return sessionStorage.getItem('hilo-boot') !== '1'; } catch { return true; }
   });
   const [menu, setMenu] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [wordIndex, setWordIndex] = useState(0);
+  const [heroIn, setHeroIn] = useState(false);
   const [slide, setSlide] = useState(0);
   const [faq, setFaq] = useState(0);
   const touchX = useRef(null);
+  const heroRef = useRef(null);
+  const sphereRef = useRef(null);
+  const titleRef = useRef(null);
+  const caRef = useRef(null);
+  const ctaRef = useRef(null);
+  const gridRef = useRef(null);
+  const parallaxRaf = useRef(0);
 
   const finishBoot = useCallback(() => {
     try { sessionStorage.setItem('hilo-boot', '1'); } catch { /* ignore */ }
@@ -477,6 +672,81 @@ export default function Landing({ onPlay }) {
   }, [menu]);
 
   useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const applyParallax = () => {
+      parallaxRaf.current = 0;
+      const y = window.scrollY;
+      setScrolled(y > 20);
+      if (reduce) return;
+
+      const hero = heroRef.current;
+      const h = hero ? hero.offsetHeight : window.innerHeight;
+      const progress = Math.min(Math.max(y / Math.max(h, 1), 0), 1.4);
+      const mobile = window.innerWidth <= 960;
+      const sphereY = mobile ? 36 : 120;
+      const sphereScale = mobile ? 0 : 0.12;
+      const titleY = mobile ? -28 : -70;
+      const caY = mobile ? -16 : -40;
+      const ctaY = mobile ? -12 : -28;
+
+      if (sphereRef.current) {
+        sphereRef.current.style.transform = mobile
+          ? `translate(-50%, calc(-50% + ${progress * sphereY}px))`
+          : `translate(-50%, calc(-50% + ${progress * sphereY}px)) scale(${1 + progress * sphereScale})`;
+        sphereRef.current.style.opacity = String(Math.max(0.35, 0.95 - progress * (mobile ? 0.35 : 0.55)));
+      }
+      if (gridRef.current) {
+        gridRef.current.style.transform = `translate3d(0, ${progress * (mobile ? 18 : 40)}px, 0)`;
+      }
+      if (titleRef.current) {
+        titleRef.current.style.transform = `translate3d(0, ${progress * titleY}px, 0)`;
+        titleRef.current.style.opacity = progress > 0.02
+          ? String(Math.max(0, 1 - progress * (mobile ? 0.55 : 0.85)))
+          : '';
+      }
+      if (caRef.current) {
+        caRef.current.style.transform = `translate3d(0, ${progress * caY}px, 0)`;
+        caRef.current.style.opacity = progress > 0.02
+          ? String(Math.max(0, 1 - progress * (mobile ? 0.7 : 1.1)))
+          : '';
+      }
+      if (ctaRef.current) {
+        ctaRef.current.style.transform = `translate3d(0, ${progress * ctaY}px, 0)`;
+        ctaRef.current.style.opacity = progress > 0.02
+          ? String(Math.max(0, 1 - progress * (mobile ? 0.85 : 1.25)))
+          : '';
+      }
+    };
+
+    const onScroll = () => {
+      if (parallaxRaf.current) return;
+      parallaxRaf.current = requestAnimationFrame(applyParallax);
+    };
+
+    applyParallax();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (parallaxRaf.current) cancelAnimationFrame(parallaxRaf.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setHeroIn(true), 40);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setWordIndex((w) => (w + 1) % HERO_WORDS.length);
+    }, 2500);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
     const id = window.setInterval(() => {
       setSlide((s) => (s + 1) % SLIDES.length);
     }, 5600);
@@ -484,44 +754,50 @@ export default function Landing({ onPlay }) {
   }, [slide]);
 
   const go = (dir) => setSlide((s) => (s + dir + SLIDES.length) % SLIDES.length);
+  const word = HERO_WORDS[wordIndex];
 
   return (
     <div className={`lp${booting ? ' lp-booting' : ''}${menu ? ' menu-on' : ''}`}>
       {booting && <GameLoader caption="ENTER THE GAME" onDone={finishBoot} />}
 
-      <header className="nav">
-        <CrypticText as="a" className="brand" href="#hero" label="HILO" />
-        <nav className="pill hide-sm" aria-label="Primary">
-          {LINKS.map((l) => (
-            <CrypticLink key={l.href} href={l.href} label={l.label} className="pill-link" />
-          ))}
+      <header className={`nav-shell${scrolled || menu ? ' is-scrolled' : ''}${menu ? ' is-menu' : ''}`}>
+        <nav className={`nav-bar${scrolled || menu ? ' is-solid' : ''}`} aria-label="Primary">
+          <CrypticText as="a" className="brand" href="#hero" label="HILO" />
+          <CaPill address={VAULT_CA} className="nav-ca hide-sm" />
+          <div className="nav-links hide-sm">
+            {LINKS.map((l) => (
+              <a key={l.href} href={l.href} className="nav-a">{l.label}</a>
+            ))}
+          </div>
+          <div className="nav-end">
+            <CaPill address={VAULT_CA} className="nav-ca-mobile show-sm" compact />
+            <button className="btn-ink sm hide-sm" type="button" onClick={onPlay}>Enter match</button>
+            <button
+              className={`burger${menu ? ' open' : ''}`}
+              type="button"
+              aria-label={menu ? 'Close menu' : 'Open menu'}
+              aria-expanded={menu}
+              onClick={() => setMenu((v) => !v)}
+            >
+              <i /><i /><i />
+            </button>
+          </div>
         </nav>
-        <div className="nav-end">
-          <span className="hide-sm"><ConnectButton chainStatus="icon" showBalance={false} /></span>
-          <button
-            className={`burger${menu ? ' open' : ''}`}
-            type="button"
-            aria-label={menu ? 'Close menu' : 'Open menu'}
-            aria-expanded={menu}
-            onClick={() => setMenu((v) => !v)}
-          >
-            <i /><i /><i />
-          </button>
-        </div>
       </header>
 
       <div className={`mobile-nav${menu ? ' open' : ''}`} aria-hidden={!menu}>
         <div className="mobile-nav-bg" aria-hidden="true" />
         <nav className="mobile-nav-links" aria-label="Mobile">
           {LINKS.map((l, i) => (
-            <CrypticLink
+            <a
               key={l.href}
               href={l.href}
-              label={l.label}
               className="mobile-link"
-              onClick={() => setMenu(false)}
               style={{ '--i': i }}
-            />
+              onClick={() => setMenu(false)}
+            >
+              {l.label}
+            </a>
           ))}
         </nav>
         <div className="mobile-nav-foot">
@@ -533,44 +809,69 @@ export default function Landing({ onPlay }) {
       </div>
 
       <CrypticZone className="lp-body">
-      <section className="sec hero" id="hero">
-        <Reveal as="p" className="eyebrow">Live on Robinhood testnet</Reveal>
-        <Reveal delay={80} className="hero-brand-wrap">
-          <CrypticText as="h1" className="hero-brand" label="HILO" tabIndex={0} />
-        </Reveal>
-        <Reveal className="ctas" delay={160}>
-          <button className="btn-ink" type="button" onClick={onPlay}>Enter match</button>
-          <a className="btn-ghost" href="#play">How it plays</a>
-        </Reveal>
-        <Reveal delay={320} className="hero-deck-wrap">
-          <DeckSlider size="hero" interactive />
-        </Reveal>
+      <section className={`sec hero${heroIn ? ' is-in' : ''}`} id="hero" ref={heroRef}>
+        <div className="hero-grid" ref={gridRef} aria-hidden="true" />
+        <div className="hero-sphere" ref={sphereRef} aria-hidden="true"><AnimatedSphere /></div>
+
+        <div className="hero-inner">
+          <div className="hero-parallax-title" ref={titleRef}>
+            <h1 className="hero-title">
+              <span className="hero-title-line hero-title-fixed">
+                {HERO_FIXED.map((w) => (
+                  <HeroWord key={w} word={w} />
+                ))}
+              </span>
+              <span className="hero-title-line hero-title-live">
+                <HeroWord key={word} word={word} live />
+              </span>
+            </h1>
+          </div>
+
+          <div className="hero-parallax-ca" ref={caRef}>
+            <CaPill address={VAULT_CA} className="hero-ca" />
+          </div>
+
+          <div className="hero-ctas hero-parallax-cta" ref={ctaRef}>
+            <button className="btn-launch" type="button" onClick={onPlay}>
+              <span className="btn-launch-ico" aria-hidden="true">→</span>
+              <span>Enter match</span>
+            </button>
+          </div>
+        </div>
       </section>
 
       <section className="sec why" id="why">
-        <Reveal as="p" className="eyebrow">Why HILO</Reveal>
-        <Reveal as="h2" delay={70}>A table you can read.</Reveal>
+        <Reveal as="p" className="eyebrow">Why <span className="accent">HILO</span></Reveal>
+        <Reveal as="h2" delay={70}>
+          <AccentText text="A table you can read." marks={['read']} />
+        </Reveal>
         <div className="why-stage">
           <Reveal as="img" className="why-photo zoom-card" delay={80} src={PHOTOS.scatter} alt="Scattered playing cards on a dark table" />
           <Reveal as="article" className="float-card left zoom-card" delay={200}>
-            <h3>Closed vault</h3>
+            <h3><AccentText text="Closed vault" marks={['vault']} /></h3>
             <p>Tokens leave only when you extract. A wipe keeps the bag in the house.</p>
           </Reveal>
           <Reveal as="article" className="float-card right zoom-card" delay={320}>
-            <h3>Committed shoe</h3>
+            <h3><AccentText text="Committed shoe" marks={['shoe']} /></h3>
             <p>HMAC shuffle, locked before the call. The next rank is not a browser roll.</p>
           </Reveal>
         </div>
-        <Reveal as="p" className="lede tight" delay={180}>Same loop every round: buy-in, call, score, extract.</Reveal>
+        <Reveal as="p" className="lede tight" delay={180}>
+          Same loop every round: <span className="accent">buy-in</span>, call, score, <span className="accent">extract</span>.
+        </Reveal>
         <Reveal delay={220}>
           <button className="btn-ink" type="button" onClick={onPlay}>Start a round</button>
         </Reveal>
       </section>
 
       <section className="sec bento" id="about">
-        <Reveal as="p" className="eyebrow">The match</Reveal>
-        <Reveal as="h2" className="fade-title" delay={60}>Built as one loop. No side quests.</Reveal>
-        <Reveal as="p" className="lede fade-title" delay={140}>Buy-in, call, clock, extract. Deck on the table. Rules in the open.</Reveal>
+        <Reveal as="p" className="eyebrow">The <span className="accent">match</span></Reveal>
+        <Reveal as="h2" className="fade-title" delay={60}>
+          <AccentText text="Built as one loop. No side quests." marks={['loop', 'quests']} />
+        </Reveal>
+        <Reveal as="p" className="lede fade-title" delay={140}>
+          Buy-in, call, clock, extract. Deck on the table. Rules in the open.
+        </Reveal>
         <div className="bento-row">
           {BENTO.map((c, i) => (
             <Reveal key={c.title} as="article" className={`bento-card zoom-card ${c.tone}`} delay={120 + i * 140}>
@@ -586,8 +887,10 @@ export default function Landing({ onPlay }) {
       </section>
 
       <section className="sec play" id="play">
-        <Reveal as="p" className="eyebrow">How it plays</Reveal>
-        <Reveal as="h2" delay={70}>Four plates. One shoe.</Reveal>
+        <Reveal as="p" className="eyebrow">How it <span className="accent">plays</span></Reveal>
+        <Reveal as="h2" delay={70}>
+          <AccentText text="Four plates. One shoe." marks={['plates', 'shoe']} />
+        </Reveal>
         <Reveal className="carousel" delay={120}>
           <button className="slide-nav prev" type="button" aria-label="Previous" onClick={() => go(-1)}>‹</button>
           <div
@@ -641,8 +944,8 @@ export default function Landing({ onPlay }) {
 
       <section className="sec faq" id="faq">
         <Reveal className="faq-left">
-          <p className="eyebrow">FAQ</p>
-          <h2>Questions before the deal.</h2>
+          <p className="eyebrow"><span className="accent">FAQ</span></p>
+          <h2><AccentText text="Questions before the deal." marks={['deal']} /></h2>
           <div className="faq-contact">
             <p>Still unclear? Open a round. The table teaches faster than copy.</p>
             <button className="btn-ink dark" type="button" onClick={onPlay}>Enter match</button>
