@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import GameLoader from './GameLoader.jsx';
 import './landing.css';
@@ -26,25 +27,21 @@ const SLIDES = [
   {
     title: 'Buy-in',
     body: 'Drop 1 HILO. 20% to treasury, 80% stays vaulted. You spawn on 20 HP.',
-    tags: ['1 HILO', '20 HP', 'Vault'],
     img: PHOTOS.dice
   },
   {
     title: 'Call',
     body: 'Higher or lower on the live rank. One call. The match clock is 20 seconds.',
-    tags: ['Higher', 'Lower', '20s'],
     img: PHOTOS.chips
   },
   {
     title: 'Shoe',
     body: 'HMAC-SHA256 shuffle, committed before you call. Not Math.random.',
-    tags: ['HMAC', 'Commit', 'Fair'],
     img: PHOTOS.scatter
   },
   {
     title: 'Extract',
     body: '3 HP = 0.1 HILO. Time up with HP: bank or rebuy. Wipe at 0: rebuy only.',
-    tags: ['0.1 HILO', 'Wipe', 'Pull'],
     img: PHOTOS.felt
   }
 ];
@@ -54,7 +51,7 @@ const BENTO = [
     title: 'One signature',
     body: 'Connect, buy in, play. Approve + deposit in a single wallet call.',
     img: PHOTOS.deck,
-    tone: 'light'
+    tone: 'photo'
   },
   {
     title: 'Twenty seconds',
@@ -80,6 +77,40 @@ const FAQS = [
   { q: 'Are the cards random?', a: 'No Math.random. The shoe is shuffled with HMAC-SHA256 and committed before you call.' }
 ];
 
+const RANK_LABEL = {
+  A: 'Ace',
+  K: 'King',
+  Q: 'Queen',
+  J: 'Joker',
+  '10': 'Ten',
+  '9': 'Nine',
+  '8': 'Eight',
+  '7': 'Seven',
+  '6': 'Six',
+  '5': 'Five',
+  '4': 'Four',
+  '3': 'Three',
+  '2': 'Two'
+};
+
+const SUIT_LABEL = { '♠': 'Spades', '♥': 'Hearts', '♦': 'Diamonds', '♣': 'Clubs' };
+
+const CARD_DESC = {
+  A: 'Ace — the ceiling. Nothing ranks higher. On the table, only lower calls are live.',
+  K: 'King — one step below ace. Strong high card that anchors aggressive higher calls.',
+  Q: 'Queen — mid-shoe power. Sits between the top and the middle of the spread.',
+  J: 'Joker — the wild edge. Borderline ranks where calls feel sharp and risky.',
+  '10': 'Ten — high number card. Often the safe pivot between face cards and the pack.',
+  '9': 'Nine — upper middle. A common fork between higher and lower on a live shoe.',
+  '8': 'Eight — dead center of the number run. Odds tighten around this rank.',
+  '7': 'Seven — mid shoe. The spread above and below starts to even out here.',
+  '6': 'Six — lower middle. Higher calls start needing real runway above.',
+  '5': 'Five — low mid. The shoe leans lower; calls need conviction.',
+  '4': 'Four — low rank. Higher is a stretch unless the table is very cold.',
+  '3': 'Three — near the floor. Only two sits below before the deck bottom.',
+  '2': 'Two — the basement. No lower call exists. Higher is the only live line.'
+};
+
 const DECK_SLIDER = [
   { r: 'A', s: '♠', red: false },
   { r: 'K', s: '♥', red: true },
@@ -99,24 +130,331 @@ const DECK_SLIDER = [
   { r: 'Q', s: '♠', red: false }
 ];
 
-function DeckSlider({ size = 'hero' }) {
-  const loop = [...DECK_SLIDER, ...DECK_SLIDER];
+function useReveal() {
+  const ref = useRef(null);
+  const [on, setOn] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setOn(true);
+      return undefined;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setOn(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.16, rootMargin: '0px 0px -6% 0px' }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return [ref, on];
+}
+
+function Reveal({ as: Tag = 'div', className = '', delay = 0, children, ...rest }) {
+  const [ref, on] = useReveal();
   return (
-    <div className={`deck-rail deck-rail-${size}`} aria-hidden="true">
-      <div className="deck-rail-track">
-        {loop.map((c, i) => (
-          <span key={`${size}-${c.r}${c.s}${i}`} className={`deck-mini${c.red ? ' red' : ''}`}>
-            <b>{c.r}</b>
-            <i>{c.s}</i>
-          </span>
-        ))}
-      </div>
-    </div>
+    <Tag
+      ref={ref}
+      className={`reveal-el${on ? ' is-in' : ''}${className ? ` ${className}` : ''}`}
+      style={delay ? { '--d': `${delay}ms` } : undefined}
+      {...rest}
+    >
+      {children}
+    </Tag>
   );
 }
 
-function Badge({ children }) {
-  return <span className="tag">{children}</span>;
+const CRYPTIC_GLYPHS = '▓░▒█▄▀◊⌁∴∷⊹⌬◈◆◇';
+
+function useCryptic(label) {
+  const [text, setText] = useState(label);
+  const frameRef = useRef(null);
+
+  const scramble = useCallback(() => {
+    if (frameRef.current) window.clearInterval(frameRef.current);
+    let frame = 0;
+    frameRef.current = window.setInterval(() => {
+      frame += 1;
+      if (frame > 10) {
+        window.clearInterval(frameRef.current);
+        frameRef.current = null;
+        setText(label);
+        return;
+      }
+      setText(
+        label
+          .split('')
+          .map((ch, i) => {
+            if (ch === ' ') return ' ';
+            const settle = frame > 6 && i <= frame - 6;
+            if (settle || Math.random() > 0.55) return label[i];
+            return CRYPTIC_GLYPHS[Math.floor(Math.random() * CRYPTIC_GLYPHS.length)];
+          })
+          .join('')
+      );
+    }, 42);
+  }, [label]);
+
+  useEffect(() => () => {
+    if (frameRef.current) window.clearInterval(frameRef.current);
+  }, []);
+
+  useEffect(() => { setText(label); }, [label]);
+
+  return { text, scramble };
+}
+
+function CrypticText({ as: Tag = 'span', label, className = '', style, children, ...rest }) {
+  const { text, scramble } = useCryptic(label);
+  return (
+    <Tag
+      className={`cryptic-link${className ? ` ${className}` : ''}`}
+      style={style}
+      onMouseEnter={scramble}
+      onFocus={scramble}
+      onTouchStart={scramble}
+      {...rest}
+    >
+      <span aria-hidden="true">{text}</span>
+      <span className="sr-only">{label}</span>
+      {children}
+    </Tag>
+  );
+}
+
+function CrypticLink({ href, label, onClick, className = '', style }) {
+  return (
+    <CrypticText
+      as="a"
+      href={href}
+      label={label}
+      className={className}
+      style={style}
+      onClick={onClick}
+    />
+  );
+}
+
+function CrypticZone({ as: Tag = 'div', className = '', children, ...rest }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return undefined;
+
+    const skipTags = new Set(['SCRIPT', 'STYLE', 'BUTTON', 'INPUT', 'TEXTAREA', 'SELECT', 'SVG']);
+    const timers = new Map();
+
+    const scrambleEl = (el, original) => {
+      if (timers.has(el)) window.clearInterval(timers.get(el));
+      let frame = 0;
+      const id = window.setInterval(() => {
+        frame += 1;
+        if (frame > 10) {
+          window.clearInterval(id);
+          timers.delete(el);
+          el.textContent = original;
+          return;
+        }
+        el.textContent = original
+          .split('')
+          .map((ch, i) => {
+            if (ch === ' ') return ' ';
+            const settle = frame > 6 && i <= frame - 6;
+            if (settle || Math.random() > 0.55) return original[i];
+            return CRYPTIC_GLYPHS[Math.floor(Math.random() * CRYPTIC_GLYPHS.length)];
+          })
+          .join('');
+      }, 42);
+      timers.set(el, id);
+    };
+
+    const shouldSkip = (node) => {
+      if (node.nodeType !== Node.ELEMENT_NODE) return false;
+      if (skipTags.has(node.tagName)) return true;
+      if (node.closest('.deck-rail, .mobile-nav, .pill, .nav, .burger, .dots, .slide-nav, .acc button, .cryptic-link, .hero-brand, .brand, .btn-ink, .btn-ghost, .sr-only')) return true;
+      return false;
+    };
+
+    const wrapTextNode = (textNode) => {
+      const text = textNode.nodeValue;
+      if (!text?.trim()) return;
+      const parent = textNode.parentElement;
+      if (!parent || shouldSkip(parent) || parent.classList.contains('cryptic-word')) return;
+
+      const frag = document.createDocumentFragment();
+      text.split(/(\s+)/).forEach((part) => {
+        if (/^\s+$/.test(part)) {
+          frag.appendChild(document.createTextNode(part));
+        } else if (part) {
+          const span = document.createElement('span');
+          span.className = 'cryptic-word';
+          span.textContent = part;
+          const original = part;
+          span.addEventListener('mouseenter', () => scrambleEl(span, original));
+          span.addEventListener('focus', () => scrambleEl(span, original));
+          span.addEventListener('touchstart', () => scrambleEl(span, original), { passive: true });
+          span.tabIndex = 0;
+          frag.appendChild(span);
+        }
+      });
+      parent.replaceChild(frag, textNode);
+    };
+
+    const walk = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        wrapTextNode(node);
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      if (shouldSkip(node)) return;
+      if (node.classList?.contains('cryptic-word')) return;
+      Array.from(node.childNodes).forEach(walk);
+    };
+
+    walk(root);
+
+    return () => {
+      timers.forEach((id) => window.clearInterval(id));
+      timers.clear();
+    };
+  }, [children]);
+
+  return (
+    <Tag ref={ref} className={`cryptic-zone${className ? ` ${className}` : ''}`} {...rest}>
+      {children}
+    </Tag>
+  );
+}
+
+function DeckSlider({ size = 'hero', interactive = false }) {
+  const [expanded, setExpanded] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef(null);
+  const loop = [...DECK_SLIDER, ...DECK_SLIDER];
+
+  useEffect(() => {
+    if (!interactive || !expanded) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [interactive, expanded]);
+
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
+
+  useEffect(() => () => {
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+  }, []);
+
+  const openCard = (card) => {
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    setClosing(false);
+    setShowDetail(false);
+    setExpanded(card);
+  };
+
+  const close = () => {
+    if (closing) return;
+    setClosing(true);
+    closeTimer.current = window.setTimeout(() => {
+      setExpanded(null);
+      setShowDetail(false);
+      setClosing(false);
+    }, 480);
+  };
+
+  if (!interactive) {
+    return (
+      <div className={`deck-rail deck-rail-${size}`} aria-hidden="true">
+        <div className="deck-rail-track">
+          {loop.map((c, i) => (
+            <span key={`${size}-${c.r}${c.s}${i}`} className={`deck-mini${c.red ? ' red' : ''}`}>
+              <b>{c.r}</b>
+              <i>{c.s}</i>
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className={`deck-rail deck-rail-${size}${expanded ? ' paused' : ''}`}>
+        <div className="deck-rail-track">
+          {loop.map((c, i) => {
+            const key = `${size}-${c.r}${c.s}${i}`;
+            const label = RANK_LABEL[c.r] || c.r;
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`deck-mini deck-mini-btn${c.red ? ' red' : ''}`}
+                onClick={() => openCard({ key, ...c, label })}
+                aria-label={`${label} of ${SUIT_LABEL[c.s] || c.s}`}
+              >
+                <b>{c.r}</b>
+                <i>{c.s}</i>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {expanded && createPortal(
+        <div className={`deck-expand-backdrop${closing ? ' is-closing' : ''}`} onClick={close} role="presentation">
+          <div
+            className={`deck-expand-shell${showDetail ? ' is-detail' : ''}${closing ? ' is-closing' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${expanded.label} of ${SUIT_LABEL[expanded.s]}`}
+          >
+            <aside className="deck-expand-desc" aria-hidden={!showDetail}>
+              <p className="deck-expand-desc-eyebrow">{SUIT_LABEL[expanded.s]}</p>
+              <h3 className="deck-expand-desc-title">{expanded.label}</h3>
+              <p className="deck-expand-desc-body">{CARD_DESC[expanded.r]}</p>
+            </aside>
+            <article className={`deck-expand-card${expanded.red ? ' red' : ''}`}>
+              <button type="button" className="deck-expand-close" aria-label="Close card" onClick={close}>×</button>
+              {!showDetail && (
+                <button
+                  type="button"
+                  className="deck-expand-view"
+                  aria-label="View card description"
+                  onClick={() => setShowDetail(true)}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" strokeWidth="1.6" />
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+                  </svg>
+                  <span>View</span>
+                </button>
+              )}
+              <span className="deck-expand-tag">{expanded.label}</span>
+              <b>{expanded.r}</b>
+              <i>{expanded.s}</i>
+              <p className="deck-expand-suit">{SUIT_LABEL[expanded.s]}</p>
+            </article>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
 }
 
 export default function Landing({ onPlay }) {
@@ -126,7 +464,7 @@ export default function Landing({ onPlay }) {
   const [menu, setMenu] = useState(false);
   const [slide, setSlide] = useState(0);
   const [faq, setFaq] = useState(0);
-  const [filter, setFilter] = useState('All');
+  const touchX = useRef(null);
 
   const finishBoot = useCallback(() => {
     try { sessionStorage.setItem('hilo-boot', '1'); } catch { /* ignore */ }
@@ -138,34 +476,31 @@ export default function Landing({ onPlay }) {
     return () => { document.body.style.overflow = ''; };
   }, [menu]);
 
-  const shownFaqs = filter === 'All'
-    ? FAQS
-    : FAQS.filter((f) => (
-      filter === 'Play' ? /enter|higher|long/i.test(f.q) :
-      filter === 'Bank' ? /cash|0 points/i.test(f.q) :
-      /random|cards/i.test(f.q)
-    ));
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setSlide((s) => (s + 1) % SLIDES.length);
+    }, 5600);
+    return () => window.clearInterval(id);
+  }, [slide]);
 
-  const current = SLIDES[slide];
+  const go = (dir) => setSlide((s) => (s + dir + SLIDES.length) % SLIDES.length);
 
   return (
-    <div className={`lp ink${booting ? ' lp-booting' : ''}${menu ? ' menu-on' : ''}`}>
+    <div className={`lp${booting ? ' lp-booting' : ''}${menu ? ' menu-on' : ''}`}>
       {booting && <GameLoader caption="ENTER THE GAME" onDone={finishBoot} />}
 
       <header className="nav">
-        <DeckSlider size="nav" />
-        <a className="brand" href="#hero">HILO</a>
-        <nav className={`pill${menu ? ' open' : ''}`} aria-label="Primary">
+        <CrypticText as="a" className="brand" href="#hero" label="HILO" />
+        <nav className="pill hide-sm" aria-label="Primary">
           {LINKS.map((l) => (
-            <a key={l.href} href={l.href} onClick={() => setMenu(false)}>{l.label}</a>
+            <CrypticLink key={l.href} href={l.href} label={l.label} className="pill-link" />
           ))}
-          <button className="btn-ink show-sm" type="button" onClick={() => { setMenu(false); onPlay(); }}>Enter match <span>↗</span></button>
         </nav>
         <div className="nav-end">
           <button className="btn-ink sm hide-sm" type="button" onClick={onPlay}>Enter <span>↗</span></button>
           <span className="hide-sm"><ConnectButton chainStatus="icon" showBalance={false} /></span>
           <button
-            className="burger"
+            className={`burger${menu ? ' open' : ''}`}
             type="button"
             aria-label={menu ? 'Close menu' : 'Open menu'}
             aria-expanded={menu}
@@ -176,6 +511,29 @@ export default function Landing({ onPlay }) {
         </div>
       </header>
 
+      <div className={`mobile-nav${menu ? ' open' : ''}`} aria-hidden={!menu}>
+        <div className="mobile-nav-bg" aria-hidden="true" />
+        <nav className="mobile-nav-links" aria-label="Mobile">
+          {LINKS.map((l, i) => (
+            <CrypticLink
+              key={l.href}
+              href={l.href}
+              label={l.label}
+              className="mobile-link"
+              onClick={() => setMenu(false)}
+              style={{ '--i': i }}
+            />
+          ))}
+        </nav>
+        <div className="mobile-nav-foot">
+          <ConnectButton chainStatus="icon" showBalance={false} />
+          <button className="btn-ink" type="button" onClick={() => { setMenu(false); onPlay(); }}>
+            Enter match <span>↗</span>
+          </button>
+        </div>
+      </div>
+
+      <CrypticZone className="lp-body">
       <section className="sec hero" id="hero">
         <div className="hero-globe" aria-hidden="true">
           <img
@@ -183,103 +541,135 @@ export default function Landing({ onPlay }) {
             alt=""
           />
         </div>
-        <Badge>Live table</Badge>
-        <h1>Call the next rank.<br />Bank the stack.</h1>
-        <p className="lede">Higher or lower on a committed shoe. 1 HILO buy-in. 20 HP. 20 seconds. Zero is a wipe.</p>
-        <div className="ctas">
-          <button className="btn-ink" onClick={onPlay}>Enter match <span>↗</span></button>
+        <Reveal as="p" className="eyebrow">Live on Robinhood testnet</Reveal>
+        <Reveal delay={80} className="hero-brand-wrap">
+          <CrypticText as="h1" className="hero-brand" label="HILO" tabIndex={0} />
+        </Reveal>
+        <Reveal as="p" className="lede" delay={160}>
+          Call the next rank. Bank the stack. Higher or lower on a committed shoe — 1 HILO, 20 HP, 20 seconds.
+        </Reveal>
+        <Reveal className="ctas" delay={240}>
+          <button className="btn-ink" type="button" onClick={onPlay}>Enter match <span>↗</span></button>
           <a className="btn-ghost" href="#play">How it plays</a>
-        </div>
-        <DeckSlider size="hero" />
+        </Reveal>
+        <Reveal delay={320} className="hero-deck-wrap">
+          <DeckSlider size="hero" interactive />
+        </Reveal>
       </section>
 
       <section className="sec why" id="why">
-        <Badge>Why HILO</Badge>
-        <h2>A table you can read.</h2>
+        <Reveal as="p" className="eyebrow">Why HILO</Reveal>
+        <Reveal as="h2" delay={70}>A table you can read.</Reveal>
         <div className="why-stage">
-          <img className="why-photo" src={PHOTOS.scatter} alt="Scattered playing cards on a dark table" />
-          <article className="float-card left">
+          <Reveal as="img" className="why-photo zoom-card" delay={80} src={PHOTOS.scatter} alt="Scattered playing cards on a dark table" />
+          <Reveal as="article" className="float-card left zoom-card" delay={200}>
             <h3>Closed vault</h3>
             <p>Tokens leave only when you extract. A wipe keeps the bag in the house.</p>
-          </article>
-          <article className="float-card right">
+          </Reveal>
+          <Reveal as="article" className="float-card right zoom-card" delay={320}>
             <h3>Committed shoe</h3>
             <p>HMAC shuffle, locked before the call. The next rank is not a browser roll.</p>
-          </article>
+          </Reveal>
         </div>
-        <p className="lede tight">Same loop every round: buy-in, call, score, extract.</p>
-        <button className="btn-ink" onClick={onPlay}>Start a round <span>↗</span></button>
+        <Reveal as="p" className="lede tight" delay={180}>Same loop every round: buy-in, call, score, extract.</Reveal>
+        <Reveal delay={220}>
+          <button className="btn-ink" type="button" onClick={onPlay}>Start a round <span>↗</span></button>
+        </Reveal>
       </section>
 
       <section className="sec bento" id="about">
-        <Badge>The match</Badge>
-        <h2>Built as one loop. No side quests.</h2>
-        <p className="lede">Buy-in, call, clock, extract. Deck on the table. Rules in the open.</p>
+        <Reveal as="p" className="eyebrow">The match</Reveal>
+        <Reveal as="h2" className="fade-title" delay={60}>Built as one loop. No side quests.</Reveal>
+        <Reveal as="p" className="lede fade-title" delay={140}>Buy-in, call, clock, extract. Deck on the table. Rules in the open.</Reveal>
         <div className="bento-row">
-          {BENTO.map((c) => (
-            <article key={c.title} className={`bento-card ${c.tone}`}>
+          {BENTO.map((c, i) => (
+            <Reveal key={c.title} as="article" className={`bento-card zoom-card ${c.tone}`} delay={120 + i * 140}>
               {c.img && <img src={c.img} alt="" />}
               {c.stat && <div className="stat">{c.stat}<span>HP</span></div>}
               <div className="bento-copy">
                 <h3>{c.title}</h3>
                 <p>{c.body}</p>
               </div>
-            </article>
+            </Reveal>
           ))}
         </div>
       </section>
 
       <section className="sec play" id="play">
-        <Badge>How it plays</Badge>
-        <h2>Four plates. One shoe.</h2>
-        <div className="slide">
-          <button className="slide-nav prev" type="button" aria-label="Previous" onClick={() => setSlide((s) => (s + SLIDES.length - 1) % SLIDES.length)}>‹</button>
-          <article className="slide-card">
-            <div className="slide-visual">
-              <img src={current.img} alt="" />
-              <img className="deck-chip" src="/art/card-ace.png" alt="" />
+        <Reveal as="p" className="eyebrow">How it plays</Reveal>
+        <Reveal as="h2" delay={70}>Four plates. One shoe.</Reveal>
+        <Reveal className="carousel" delay={120}>
+          <button className="slide-nav prev" type="button" aria-label="Previous" onClick={() => go(-1)}>‹</button>
+          <div
+            className="carousel-viewport"
+            onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (touchX.current == null) return;
+              const dx = e.changedTouches[0].clientX - touchX.current;
+              touchX.current = null;
+              if (Math.abs(dx) < 40) return;
+              go(dx < 0 ? 1 : -1);
+            }}
+          >
+            <div
+              className="carousel-track"
+              style={{
+                '--slides': SLIDES.length,
+                transform: `translateX(calc(-100% * ${slide} / ${SLIDES.length}))`
+              }}
+            >
+              {SLIDES.map((s, i) => (
+                <article key={s.title} className={`slide-card${i === slide ? ' active' : ''}`} aria-hidden={i !== slide}>
+                  <div className="slide-visual">
+                    <img src={s.img} alt="" />
+                  </div>
+                  <div className="slide-copy">
+                    <p className="k">0{i + 1} / 0{SLIDES.length}</p>
+                    <h3>{s.title}</h3>
+                    <p>{s.body}</p>
+                    <button className="btn-ink" type="button" onClick={onPlay}>Enter match <span>↗</span></button>
+                  </div>
+                </article>
+              ))}
             </div>
-            <div className="slide-copy">
-              <p className="k">0{slide + 1}</p>
-              <h3>{current.title}</h3>
-              <p>{current.body}</p>
-              <div className="chips">{current.tags.map((t) => <span key={t}>{t}</span>)}</div>
-              <button className="btn-ink" onClick={onPlay}>Enter match <span>↗</span></button>
-            </div>
-          </article>
-          <button className="slide-nav next" type="button" aria-label="Next" onClick={() => setSlide((s) => (s + 1) % SLIDES.length)}>›</button>
-        </div>
+          </div>
+          <button className="slide-nav next" type="button" aria-label="Next" onClick={() => go(1)}>›</button>
+        </Reveal>
         <div className="dots" role="tablist">
           {SLIDES.map((s, i) => (
-            <button key={s.title} type="button" className={i === slide ? 'on' : ''} aria-label={s.title} onClick={() => setSlide(i)} />
+            <button
+              key={s.title}
+              type="button"
+              className={i === slide ? 'on' : ''}
+              aria-label={s.title}
+              aria-selected={i === slide}
+              onClick={() => setSlide(i)}
+            />
           ))}
         </div>
       </section>
 
       <section className="sec faq" id="faq">
-        <div className="faq-left">
-          <Badge>FAQ</Badge>
-          <h2>FAQ</h2>
+        <Reveal className="faq-left">
+          <p className="eyebrow">FAQ</p>
+          <h2>Questions before the deal.</h2>
           <div className="faq-contact">
             <p>Still unclear? Open a round. The table teaches faster than copy.</p>
-            <button className="btn-ink dark" onClick={onPlay}>Enter match <span>↗</span></button>
+            <button className="btn-ink dark" type="button" onClick={onPlay}>Enter match <span>↗</span></button>
           </div>
-        </div>
+        </Reveal>
         <div className="faq-right">
-          <div className="filters">
-            {['All', 'Play', 'Bank', 'Fair'].map((f) => (
-              <button key={f} type="button" className={filter === f ? 'on' : ''} onClick={() => { setFilter(f); setFaq(0); }}>{f}</button>
-            ))}
-          </div>
           <ul className="acc">
-            {shownFaqs.map((item, i) => (
-              <li key={item.q}>
+            {FAQS.map((item, i) => (
+              <Reveal as="li" key={item.q} delay={80 + i * 70} className="faq-item">
                 <button type="button" onClick={() => setFaq(faq === i ? -1 : i)}>
                   {item.q}
                   <span>{faq === i ? '–' : '+'}</span>
                 </button>
-                {faq === i && <p>{item.a}</p>}
-              </li>
+                <div className={`acc-body${faq === i ? ' open' : ''}`}>
+                  <p>{item.a}</p>
+                </div>
+              </Reveal>
             ))}
           </ul>
         </div>
@@ -288,8 +678,8 @@ export default function Landing({ onPlay }) {
       <footer className="foot">
         <div className="foot-top">
           <div>
-            <a className="brand" href="#hero">HILO</a>
-            <button className="btn-ink" onClick={onPlay}>Enter match <span>↗</span></button>
+            <CrypticText as="a" className="brand" href="#hero" label="HILO" />
+            <button className="btn-ink" type="button" onClick={onPlay}>Enter match <span>↗</span></button>
           </div>
           <div>
             <h4>Play</h4>
@@ -314,6 +704,7 @@ export default function Landing({ onPlay }) {
           <a href="#hero">Back to top ↑</a>
         </div>
       </footer>
+      </CrypticZone>
     </div>
   );
 }
