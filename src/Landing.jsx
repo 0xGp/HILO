@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import GameLoader from './GameLoader.jsx';
 import { VAULT_CA } from './lib/constants.js';
 import './landing.css';
+
+const GL = lazy(() => import('./components/gl/index.jsx').then((m) => ({ default: m.GL })));
 
 const u = (id, w = 1400) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=80`;
@@ -18,34 +20,37 @@ const PHOTOS = {
 };
 
 const LINKS = [
-  { href: '#hero', label: 'Home' },
-  { href: '#why', label: 'Table' },
+  { href: '#why', label: 'About' },
   { href: '#play', label: 'Play' },
-  { href: '#faq', label: 'FAQ' }
+  { href: '#about', label: 'Table' },
+  { href: '#faq', label: 'Contact' }
 ];
 
-const HERO_FIXED = ['HIGHER', 'LOWER'];
-const HERO_WORDS = ['CALL', 'EXTRACT', 'MATCH', 'SCORE'];
+const HERO_ITALICS = ['higher', 'lower', 'faster', 'deeper'];
 
-function HeroWord({ word, live = false, delayBase = 0 }) {
+function StatusPill({ children, className = '', style }) {
   return (
-    <span className={`hero-word${live ? ' is-live' : ''}`}>
-      {word.split('').map((ch, i) => (
-        <span
-          key={`${word}-${i}`}
-          className={`hero-char${i === word.length - 1 ? ' accent' : ''}`}
-          style={live ? { animationDelay: `${delayBase + i * 45}ms` } : undefined}
-        >
-          {ch}
-        </span>
-      ))}
-      <span
-        className="hero-char accent"
-        style={live ? { animationDelay: `${delayBase + word.length * 45}ms` } : undefined}
-      >
-        .
-      </span>
-    </span>
+    <div className={`status-pill${className ? ` ${className}` : ''}`} style={style}>
+      <span className="status-pill-corner tl" aria-hidden="true" />
+      <span className="status-pill-corner tr" aria-hidden="true" />
+      <span className="status-pill-corner bl" aria-hidden="true" />
+      <span className="status-pill-corner br" aria-hidden="true" />
+      <span className="dot" aria-hidden="true" />
+      {children}
+    </div>
+  );
+}
+
+function SkalButton({ children, className = '', size = 'default', style, ...props }) {
+  return (
+    <button
+      type="button"
+      className={`btn-skal${size === 'sm' ? ' sm' : ''}${className ? ` ${className}` : ''}`}
+      style={style}
+      {...props}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -93,119 +98,6 @@ function CaPill({ address, className = '', compact = false, full = false }) {
       {!compact && <span className="ca-copy" aria-hidden="true">{copied ? '✓' : '⧉'}</span>}
     </button>
   );
-}
-
-function AnimatedSphere() {
-  const canvasRef = useRef(null);
-  const frameRef = useRef(0);
-  const runningRef = useRef(false);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || runningRef.current) return undefined;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return undefined;
-    runningRef.current = true;
-
-    const chars = '░▒▓█│─┤├┴┬·';
-    let time = 0;
-    let alive = true;
-
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const rect = canvas.getBoundingClientRect();
-      const w = Math.max(1, Math.floor(rect.width));
-      const h = Math.max(1, Math.floor(rect.height));
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-
-    resize();
-    window.addEventListener('resize', resize);
-
-    const render = () => {
-      if (!alive) return;
-      const rect = canvas.getBoundingClientRect();
-      const w = rect.width;
-      const h = rect.height;
-      if (w < 2 || h < 2) {
-        frameRef.current = requestAnimationFrame(render);
-        return;
-      }
-
-      ctx.clearRect(0, 0, w, h);
-
-      const centerX = w / 2;
-      const centerY = h / 2;
-      const radius = Math.min(w, h) * 0.46;
-      const mobile = w < 520;
-      const step = mobile ? 0.13 : 0.1;
-
-      // Clip to a clean circle so the sphere never looks broken / doubled
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius + 2, 0, Math.PI * 2);
-      ctx.clip();
-
-      ctx.font = `${mobile ? 9 : 11}px monospace`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      const points = [];
-
-      for (let phi = 0; phi < Math.PI * 2; phi += step) {
-        for (let theta = 0; theta < Math.PI; theta += step) {
-          const x = Math.sin(theta) * Math.cos(phi + time * 0.5);
-          const y = Math.sin(theta) * Math.sin(phi + time * 0.5);
-          const z = Math.cos(theta);
-
-          const rotY = time * 0.28;
-          const newX = x * Math.cos(rotY) - z * Math.sin(rotY);
-          const newZ = x * Math.sin(rotY) + z * Math.cos(rotY);
-
-          const rotX = time * 0.18;
-          const newY = y * Math.cos(rotX) - newZ * Math.sin(rotX);
-          const finalZ = y * Math.sin(rotX) + newZ * Math.cos(rotX);
-
-          const depth = (finalZ + 1) / 2;
-          const charIndex = Math.floor(depth * (chars.length - 1));
-
-          points.push({
-            x: centerX + newX * radius,
-            y: centerY + newY * radius,
-            z: finalZ,
-            char: chars[charIndex]
-          });
-        }
-      }
-
-      points.sort((a, b) => a.z - b.z);
-      points.forEach((point) => {
-        const depth = (point.z + 1) / 2;
-        const alpha = 0.2 + depth * 0.75;
-        ctx.fillStyle = `rgba(232, 120, 48, ${Math.min(0.35 + depth * 0.65, 0.98)})`;
-        if (depth < 0.35) {
-          ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(alpha * 0.55, 0.55)})`;
-        }
-        ctx.fillText(point.char, point.x, point.y);
-      });
-
-      ctx.restore();
-      time += mobile ? 0.014 : 0.018;
-      frameRef.current = requestAnimationFrame(render);
-    };
-
-    render();
-    return () => {
-      alive = false;
-      runningRef.current = false;
-      window.removeEventListener('resize', resize);
-      cancelAnimationFrame(frameRef.current);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="hero-sphere-canvas" aria-hidden="true" />;
 }
 
 const SLIDES = [
@@ -315,9 +207,10 @@ const DECK_SLIDER = [
   { r: 'Q', s: '♠', red: false }
 ];
 
-function useReveal() {
+function useReveal(options = {}) {
   const ref = useRef(null);
   const [on, setOn] = useState(false);
+  const { threshold = 0.12, rootMargin = '0px 0px -8% 0px' } = options;
 
   useEffect(() => {
     const el = ref.current;
@@ -333,11 +226,11 @@ function useReveal() {
           io.disconnect();
         }
       },
-      { threshold: 0.16, rootMargin: '0px 0px -6% 0px' }
+      { threshold, rootMargin }
     );
     io.observe(el);
     return () => io.disconnect();
-  }, []);
+  }, [threshold, rootMargin]);
 
   return [ref, on];
 }
@@ -353,6 +246,19 @@ function Reveal({ as: Tag = 'div', className = '', delay = 0, children, ...rest 
     >
       {children}
     </Tag>
+  );
+}
+
+function SectionReveal({ id, className = '', children }) {
+  const [ref, on] = useReveal({ threshold: 0.08, rootMargin: '0px 0px -4% 0px' });
+  return (
+    <section
+      ref={ref}
+      id={id}
+      className={`sec sec-reveal${on ? ' is-in' : ''}${className ? ` ${className}` : ''}`}
+    >
+      {children}
+    </section>
   );
 }
 
@@ -649,17 +555,10 @@ export default function Landing({ onPlay }) {
   const [menu, setMenu] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [wordIndex, setWordIndex] = useState(0);
-  const [heroIn, setHeroIn] = useState(false);
+  const [hovering, setHovering] = useState(false);
   const [slide, setSlide] = useState(0);
   const [faq, setFaq] = useState(0);
   const touchX = useRef(null);
-  const heroRef = useRef(null);
-  const sphereRef = useRef(null);
-  const titleRef = useRef(null);
-  const caRef = useRef(null);
-  const ctaRef = useRef(null);
-  const gridRef = useRef(null);
-  const parallaxRaf = useRef(0);
 
   const finishBoot = useCallback(() => {
     try { sessionStorage.setItem('hilo-boot', '1'); } catch { /* ignore */ }
@@ -672,77 +571,16 @@ export default function Landing({ onPlay }) {
   }, [menu]);
 
   useEffect(() => {
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    const applyParallax = () => {
-      parallaxRaf.current = 0;
-      const y = window.scrollY;
-      setScrolled(y > 20);
-      if (reduce) return;
-
-      const hero = heroRef.current;
-      const h = hero ? hero.offsetHeight : window.innerHeight;
-      const progress = Math.min(Math.max(y / Math.max(h, 1), 0), 1.4);
-      const mobile = window.innerWidth <= 960;
-      const sphereY = mobile ? 36 : 120;
-      const sphereScale = mobile ? 0 : 0.12;
-      const titleY = mobile ? -28 : -70;
-      const caY = mobile ? -16 : -40;
-      const ctaY = mobile ? -12 : -28;
-
-      if (sphereRef.current) {
-        sphereRef.current.style.transform = mobile
-          ? `translate(-50%, calc(-50% + ${progress * sphereY}px))`
-          : `translate(-50%, calc(-50% + ${progress * sphereY}px)) scale(${1 + progress * sphereScale})`;
-        sphereRef.current.style.opacity = String(Math.max(0.35, 0.95 - progress * (mobile ? 0.35 : 0.55)));
-      }
-      if (gridRef.current) {
-        gridRef.current.style.transform = `translate3d(0, ${progress * (mobile ? 18 : 40)}px, 0)`;
-      }
-      if (titleRef.current) {
-        titleRef.current.style.transform = `translate3d(0, ${progress * titleY}px, 0)`;
-        titleRef.current.style.opacity = progress > 0.02
-          ? String(Math.max(0, 1 - progress * (mobile ? 0.55 : 0.85)))
-          : '';
-      }
-      if (caRef.current) {
-        caRef.current.style.transform = `translate3d(0, ${progress * caY}px, 0)`;
-        caRef.current.style.opacity = progress > 0.02
-          ? String(Math.max(0, 1 - progress * (mobile ? 0.7 : 1.1)))
-          : '';
-      }
-      if (ctaRef.current) {
-        ctaRef.current.style.transform = `translate3d(0, ${progress * ctaY}px, 0)`;
-        ctaRef.current.style.opacity = progress > 0.02
-          ? String(Math.max(0, 1 - progress * (mobile ? 0.85 : 1.25)))
-          : '';
-      }
-    };
-
-    const onScroll = () => {
-      if (parallaxRaf.current) return;
-      parallaxRaf.current = requestAnimationFrame(applyParallax);
-    };
-
-    applyParallax();
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (parallaxRaf.current) cancelAnimationFrame(parallaxRaf.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setHeroIn(true), 40);
-    return () => window.clearTimeout(t);
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      setWordIndex((w) => (w + 1) % HERO_WORDS.length);
-    }, 2500);
+      setWordIndex((w) => (w + 1) % HERO_ITALICS.length);
+    }, 2800);
     return () => window.clearInterval(id);
   }, []);
 
@@ -754,93 +592,105 @@ export default function Landing({ onPlay }) {
   }, [slide]);
 
   const go = (dir) => setSlide((s) => (s + dir + SLIDES.length) % SLIDES.length);
-  const word = HERO_WORDS[wordIndex];
+  const italic = HERO_ITALICS[wordIndex];
 
   return (
     <div className={`lp${booting ? ' lp-booting' : ''}${menu ? ' menu-on' : ''}`}>
       {booting && <GameLoader caption="ENTER THE GAME" onDone={finishBoot} />}
 
-      <header className={`nav-shell${scrolled || menu ? ' is-scrolled' : ''}${menu ? ' is-menu' : ''}`}>
-        <nav className={`nav-bar${scrolled || menu ? ' is-solid' : ''}`} aria-label="Primary">
-          <CrypticText as="a" className="brand" href="#hero" label="HILO" />
-          <CaPill address={VAULT_CA} className="nav-ca hide-sm" />
-          <div className="nav-links hide-sm">
-            {LINKS.map((l) => (
-              <a key={l.href} href={l.href} className="nav-a">{l.label}</a>
-            ))}
-          </div>
-          <div className="nav-end">
-            <CaPill address={VAULT_CA} className="nav-ca-mobile show-sm" compact />
-            <button className="btn-ink sm hide-sm" type="button" onClick={onPlay}>Enter match</button>
-            <button
-              className={`burger${menu ? ' open' : ''}`}
-              type="button"
-              aria-label={menu ? 'Close menu' : 'Open menu'}
-              aria-expanded={menu}
-              onClick={() => setMenu((v) => !v)}
-            >
-              <i /><i /><i />
-            </button>
-          </div>
-        </nav>
-      </header>
+      <div className="lp-gl" aria-hidden="true">
+        <Suspense fallback={null}>
+          <GL hovering={hovering} />
+        </Suspense>
+      </div>
 
-      <div className={`mobile-nav${menu ? ' open' : ''}`} aria-hidden={!menu}>
-        <div className="mobile-nav-bg" aria-hidden="true" />
-        <nav className="mobile-nav-links" aria-label="Mobile">
-          {LINKS.map((l, i) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="mobile-link"
-              style={{ '--i': i }}
-              onClick={() => setMenu(false)}
-            >
+      {/* Skal template header */}
+      <div className={`skal-header${scrolled || menu ? ' is-scrolled' : ''}`}>
+        <header className="skal-header-inner">
+          <a className="skal-logo" href="#hero" aria-label="HILO">
+            HIL<span>O</span>
+          </a>
+          <nav className="skal-nav" aria-label="Primary">
+            {LINKS.map((l) => (
+              <a key={l.href} href={l.href} className="skal-nav-link">{l.label}</a>
+            ))}
+          </nav>
+          <button className="skal-signin" type="button" onClick={onPlay}>
+            Sign In
+          </button>
+          <button
+            className={`skal-menu-btn${menu ? ' open' : ''}`}
+            type="button"
+            aria-label={menu ? 'Close menu' : 'Open menu'}
+            aria-expanded={menu}
+            onClick={() => setMenu((v) => !v)}
+          >
+            <span className="skal-menu-icon" aria-hidden="true">
+              {menu ? (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              ) : (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+              )}
+            </span>
+          </button>
+        </header>
+      </div>
+
+      <div className={`skal-mobile${menu ? ' open' : ''}`} aria-hidden={!menu}>
+        <div className="skal-mobile-bg" aria-hidden="true" onClick={() => setMenu(false)} />
+        <nav className="skal-mobile-nav" aria-label="Mobile">
+          {LINKS.map((l) => (
+            <a key={l.href} href={l.href} className="skal-mobile-link" onClick={() => setMenu(false)}>
               {l.label}
             </a>
           ))}
-        </nav>
-        <div className="mobile-nav-foot">
-          <ConnectButton chainStatus="icon" showBalance={false} />
-          <button className="btn-ink" type="button" onClick={() => { setMenu(false); onPlay(); }}>
-            Enter match
+          <button type="button" className="skal-mobile-cta" onClick={() => { setMenu(false); onPlay(); }}>
+            Sign In
           </button>
-        </div>
+          <div className="skal-mobile-wallet">
+            <ConnectButton chainStatus="icon" showBalance={false} />
+          </div>
+        </nav>
       </div>
 
       <CrypticZone className="lp-body">
-      <section className={`sec hero${heroIn ? ' is-in' : ''}`} id="hero" ref={heroRef}>
-        <div className="hero-grid" ref={gridRef} aria-hidden="true" />
-        <div className="hero-sphere" ref={sphereRef} aria-hidden="true"><AnimatedSphere /></div>
-
-        <div className="hero-inner">
-          <div className="hero-parallax-title" ref={titleRef}>
-            <h1 className="hero-title">
-              <span className="hero-title-line hero-title-fixed">
-                {HERO_FIXED.map((w) => (
-                  <HeroWord key={w} word={w} />
-                ))}
-              </span>
-              <span className="hero-title-line hero-title-live">
-                <HeroWord key={word} word={word} live />
-              </span>
-            </h1>
-          </div>
-
-          <div className="hero-parallax-ca" ref={caRef}>
-            <CaPill address={VAULT_CA} className="hero-ca" />
-          </div>
-
-          <div className="hero-ctas hero-parallax-cta" ref={ctaRef}>
-            <button className="btn-launch" type="button" onClick={onPlay}>
-              <span className="btn-launch-ico" aria-hidden="true">→</span>
-              <span>Enter match</span>
-            </button>
-          </div>
+      {/* Skal template hero */}
+      <section className="skal-hero" id="hero">
+        <div className="skal-hero-copy hero-enter">
+          <StatusPill className="mb-6 hero-enter-item" style={{ '--d': '80ms' }}>LIVE TABLE</StatusPill>
+          <h1 className="skal-hero-title hero-enter-item" style={{ '--d': '180ms' }}>
+            Call the
+            <br />
+            <i key={italic}>{italic}</i>
+            {' '}
+            rank
+          </h1>
+          <p className="skal-hero-lede hero-enter-item" style={{ '--d': '320ms' }}>
+            Through committed shoes and vaulted buy-ins that keep every call on-chain
+          </p>
+          <SkalButton
+            className="skal-hero-cta hide-sm hero-enter-item"
+            style={{ '--d': '460ms' }}
+            onMouseEnter={() => setHovering(true)}
+            onMouseLeave={() => setHovering(false)}
+            onClick={onPlay}
+          >
+            [Enter match]
+          </SkalButton>
+          <SkalButton
+            size="sm"
+            className="skal-hero-cta show-sm hero-enter-item"
+            style={{ '--d': '460ms' }}
+            onMouseEnter={() => setHovering(true)}
+            onMouseLeave={() => setHovering(false)}
+            onClick={onPlay}
+          >
+            [Enter match]
+          </SkalButton>
         </div>
       </section>
 
-      <section className="sec why" id="why">
+      <SectionReveal className="why" id="why">
         <Reveal as="p" className="eyebrow">Why <span className="accent">HILO</span></Reveal>
         <Reveal as="h2" delay={70}>
           <AccentText text="A table you can read." marks={['read']} />
@@ -862,9 +712,9 @@ export default function Landing({ onPlay }) {
         <Reveal delay={220}>
           <button className="btn-ink" type="button" onClick={onPlay}>Start a round</button>
         </Reveal>
-      </section>
+      </SectionReveal>
 
-      <section className="sec bento" id="about">
+      <SectionReveal className="bento" id="about">
         <Reveal as="p" className="eyebrow">The <span className="accent">match</span></Reveal>
         <Reveal as="h2" className="fade-title" delay={60}>
           <AccentText text="Built as one loop. No side quests." marks={['loop', 'quests']} />
@@ -884,14 +734,14 @@ export default function Landing({ onPlay }) {
             </Reveal>
           ))}
         </div>
-      </section>
+      </SectionReveal>
 
-      <section className="sec play" id="play">
+      <SectionReveal className="play" id="play">
         <Reveal as="p" className="eyebrow">How it <span className="accent">plays</span></Reveal>
         <Reveal as="h2" delay={70}>
           <AccentText text="Four plates. One shoe." marks={['plates', 'shoe']} />
         </Reveal>
-        <Reveal className="carousel" delay={120}>
+        <Reveal className="carousel zoom-card" delay={120}>
           <button className="slide-nav prev" type="button" aria-label="Previous" onClick={() => go(-1)}>‹</button>
           <div
             className="carousel-viewport"
@@ -928,7 +778,7 @@ export default function Landing({ onPlay }) {
           </div>
           <button className="slide-nav next" type="button" aria-label="Next" onClick={() => go(1)}>›</button>
         </Reveal>
-        <div className="dots" role="tablist">
+        <Reveal className="dots" delay={220} role="tablist">
           {SLIDES.map((s, i) => (
             <button
               key={s.title}
@@ -939,10 +789,10 @@ export default function Landing({ onPlay }) {
               onClick={() => setSlide(i)}
             />
           ))}
-        </div>
-      </section>
+        </Reveal>
+      </SectionReveal>
 
-      <section className="sec faq" id="faq">
+      <SectionReveal className="faq" id="faq">
         <Reveal className="faq-left">
           <p className="eyebrow"><span className="accent">FAQ</span></p>
           <h2><AccentText text="Questions before the deal." marks={['deal']} /></h2>
@@ -954,7 +804,7 @@ export default function Landing({ onPlay }) {
         <div className="faq-right">
           <ul className="acc">
             {FAQS.map((item, i) => (
-              <Reveal as="li" key={item.q} delay={80 + i * 70} className="faq-item">
+              <Reveal as="li" key={item.q} delay={80 + i * 70} className="faq-item zoom-card">
                 <button type="button" onClick={() => setFaq(faq === i ? -1 : i)}>
                   {item.q}
                   <span>{faq === i ? '–' : '+'}</span>
@@ -966,9 +816,9 @@ export default function Landing({ onPlay }) {
             ))}
           </ul>
         </div>
-      </section>
+      </SectionReveal>
 
-      <footer className="foot">
+      <Reveal as="footer" className="foot" delay={60}>
         <div className="foot-top">
           <div>
             <CrypticText as="a" className="brand" href="#hero" label="HILO" />
@@ -996,7 +846,7 @@ export default function Landing({ onPlay }) {
           <span>Photos via Unsplash</span>
           <a href="#hero">Back to top ↑</a>
         </div>
-      </footer>
+      </Reveal>
       </CrypticZone>
     </div>
   );
