@@ -7,18 +7,6 @@ import './landing.css';
 
 const GL = lazy(() => import('./components/gl/index.jsx').then((m) => ({ default: m.GL })));
 
-const u = (id, w = 1400) =>
-  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=80`;
-
-const PHOTOS = {
-  table: u('photo-1732613243572-c424f02cf821'),
-  scatter: u('photo-1771862877468-bcbada32830c'),
-  dice: u('photo-1646808911016-21d14de4df38'),
-  chips: u('photo-1511193311914-0346f16efe90'),
-  felt: u('photo-1606167668584-78701c57f13d'),
-  deck: u('photo-1541278107931-e006523892df')
-};
-
 const LINKS = [
   { href: '#why', label: 'About' },
   { href: '#play', label: 'Play' },
@@ -51,6 +39,41 @@ function SkalButton({ children, className = '', size = 'default', style, ...prop
     >
       {children}
     </button>
+  );
+}
+
+function LockIcon({ className = '' }) {
+  return (
+    <svg
+      className={`lock-icon${className ? ` ${className}` : ''}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect x="5" y="11" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M8 11V8a4 4 0 0 1 8 0v3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="16" r="1.25" fill="currentColor" />
+    </svg>
+  );
+}
+
+function LockPanel({ label, code, sub, size = 'md', className = '' }) {
+  return (
+    <div className={`lock-panel lock-panel-${size}${className ? ` ${className}` : ''}`}>
+      <span className="lock-panel-edge tl" aria-hidden="true" />
+      <span className="lock-panel-edge tr" aria-hidden="true" />
+      <span className="lock-panel-edge bl" aria-hidden="true" />
+      <span className="lock-panel-edge br" aria-hidden="true" />
+      <LockIcon />
+      {label && <span className="lock-panel-label">{label}</span>}
+      {code && <code className="lock-panel-code">{code}</code>}
+      {sub && <span className="lock-panel-sub">{sub}</span>}
+    </div>
   );
 }
 
@@ -104,45 +127,59 @@ const SLIDES = [
   {
     title: 'Buy-in',
     body: 'Drop 1 HILO. 20% to treasury, 80% stays vaulted. You spawn on 20 HP.',
-    img: PHOTOS.dice
+    label: 'DEPOSIT',
+    code: '1 HILO → VAULT',
+    sub: '80% LOCKED · 20 HP',
   },
   {
     title: 'Call',
     body: 'Higher or lower on the live rank. One call. The match clock is 20 seconds.',
-    img: PHOTOS.chips
+    label: 'CALL',
+    code: 'HIGHER / LOWER',
+    sub: '20s MATCH CLOCK',
   },
   {
     title: 'Shoe',
     body: 'HMAC-SHA256 shuffle, committed before you call. Not Math.random.',
-    img: PHOTOS.scatter
+    label: 'SHOE',
+    code: 'HMAC-SHA256',
+    sub: 'COMMITTED PRE-CALL',
   },
   {
     title: 'Extract',
     body: '3 HP = 0.1 HILO. Time up with HP: bank or rebuy. Wipe at 0: rebuy only.',
-    img: PHOTOS.felt
-  }
+    label: 'EXTRACT',
+    code: '3 HP = 0.1 HILO',
+    sub: 'VAULT RELEASE',
+  },
 ];
 
 const BENTO = [
   {
     title: 'One signature',
     body: 'Connect, buy in, play. Approve + deposit in a single wallet call.',
-    img: PHOTOS.deck,
-    tone: 'photo'
+    label: 'WALLET',
+    code: '1 TX · BUY-IN',
+    stat: '01',
+    statUnit: 'SIG',
   },
   {
     title: 'Twenty seconds',
     body: 'The clock is the round, not each guess. When it hits zero, the result takes the table.',
-    img: PHOTOS.table,
-    tone: 'photo'
+    label: 'CLOCK',
+    code: '00:20:00',
+    stat: '20',
+    statUnit: 'SEC',
   },
   {
     title: 'Twenty HP',
     body: 'Hit +3. Miss −3. Zero is a wipe. You pull your own stack.',
-    img: '/art/twenty-hp.png',
-    tone: 'photo portrait',
-    stat: '20'
-  }
+    label: 'HEALTH',
+    code: '+3 / −3 PER CALL',
+    stat: '20',
+    statUnit: 'HP',
+    featured: true,
+  },
 ];
 
 const FAQS = [
@@ -696,12 +733,21 @@ export default function Landing({ onPlay }) {
           <AccentText text="A table you can read." marks={['read']} />
         </Reveal>
         <div className="why-stage">
-          <Reveal as="img" className="why-photo zoom-card" delay={80} src={PHOTOS.scatter} alt="Scattered playing cards on a dark table" />
+          <Reveal className="why-vault zoom-card" delay={80}>
+            <LockPanel
+              size="lg"
+              label="VAULT LOCKED"
+              code={shortCa(VAULT_CA, 10, 8)}
+              sub="TOKENS IN · EXTRACT OUT"
+            />
+          </Reveal>
           <Reveal as="article" className="float-card left zoom-card" delay={200}>
+            <div className="float-card-lock" aria-hidden="true"><LockIcon /></div>
             <h3><AccentText text="Closed vault" marks={['vault']} /></h3>
             <p>Tokens leave only when you extract. A wipe keeps the bag in the house.</p>
           </Reveal>
           <Reveal as="article" className="float-card right zoom-card" delay={320}>
+            <div className="float-card-lock" aria-hidden="true"><LockIcon /></div>
             <h3><AccentText text="Committed shoe" marks={['shoe']} /></h3>
             <p>HMAC shuffle, locked before the call. The next rank is not a browser roll.</p>
           </Reveal>
@@ -724,9 +770,23 @@ export default function Landing({ onPlay }) {
         </Reveal>
         <div className="bento-row">
           {BENTO.map((c, i) => (
-            <Reveal key={c.title} as="article" className={`bento-card zoom-card ${c.tone}`} delay={120 + i * 140}>
-              {c.img && <img src={c.img} alt="" />}
-              {c.stat && <div className="stat">{c.stat}<span>HP</span></div>}
+            <Reveal
+              key={c.title}
+              as="article"
+              className={`bento-card zoom-card${c.featured ? ' featured' : ''}`}
+              delay={120 + i * 140}
+            >
+              <div className="bento-lock-head">
+                <LockIcon />
+                <span className="bento-lock-label">{c.label}</span>
+              </div>
+              {c.stat && (
+                <div className="stat">
+                  {c.stat}
+                  <span>{c.statUnit}</span>
+                </div>
+              )}
+              <code className="bento-code">{c.code}</code>
               <div className="bento-copy">
                 <h3>{c.title}</h3>
                 <p>{c.body}</p>
@@ -764,7 +824,12 @@ export default function Landing({ onPlay }) {
               {SLIDES.map((s, i) => (
                 <article key={s.title} className={`slide-card${i === slide ? ' active' : ''}`} aria-hidden={i !== slide}>
                   <div className="slide-visual">
-                    <img src={s.img} alt="" />
+                    <LockPanel
+                      size="sm"
+                      label={s.label}
+                      code={s.code}
+                      sub={s.sub}
+                    />
                   </div>
                   <div className="slide-copy">
                     <p className="k">0{i + 1} / 0{SLIDES.length}</p>
@@ -797,6 +862,7 @@ export default function Landing({ onPlay }) {
           <p className="eyebrow"><span className="accent">FAQ</span></p>
           <h2><AccentText text="Questions before the deal." marks={['deal']} /></h2>
           <div className="faq-contact">
+            <div className="faq-contact-lock" aria-hidden="true"><LockIcon /></div>
             <p>Still unclear? Open a round. The table teaches faster than copy.</p>
             <button className="btn-ink dark" type="button" onClick={onPlay}>Enter match</button>
           </div>
@@ -843,7 +909,7 @@ export default function Landing({ onPlay }) {
           </div>
         </div>
         <div className="foot-bot">
-          <span>Photos via Unsplash</span>
+          <span>On-chain · Robinhood Chain Testnet</span>
           <a href="#hero">Back to top ↑</a>
         </div>
       </Reveal>
