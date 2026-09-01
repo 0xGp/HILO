@@ -12,9 +12,9 @@ export default function Providers({ children }) {
         <RainbowKitProvider
           initialChain={robinhoodTestnet}
           theme={darkTheme({
-            accentColor: '#d6c4a1',
+            accentColor: '#FFC700',
             accentColorForeground: '#0a0a0a',
-            borderRadius: 'large',
+            borderRadius: 'medium',
             overlayBlur: 'small'
           })}
         >

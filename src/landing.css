@@ -1284,7 +1284,63 @@
   cursor:pointer;padding:0.5rem 0;text-align:left;
 }
 .skal-mobile-cta:hover{color:rgba(255,199,0,0.8);}
-.skal-mobile-wallet{margin-top:1rem;}
+.skal-mobile-wallet{margin-top:1.5rem;width:100%;}
+
+.wallet-connect-btn{
+  --poly:10px;
+  position:relative;
+  display:inline-flex;align-items:center;justify-content:center;gap:0.6rem;
+  width:100%;min-height:3.5rem;padding:0 1.35rem;
+  font-family:var(--font-mono);font-weight:500;font-size:1rem;
+  letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--primary);
+  background:rgba(10,10,10,0.55);
+  backdrop-filter:blur(18px) saturate(160%);
+  -webkit-backdrop-filter:blur(18px) saturate(160%);
+  border:1px solid rgba(255,199,0,0.32);
+  cursor:pointer;
+  clip-path:polygon(
+    var(--poly) 0, calc(100% - var(--poly)) 0, 100% var(--poly),
+    100% calc(100% - var(--poly)), calc(100% - var(--poly)) 100%,
+    var(--poly) 100%, 0 calc(100% - var(--poly)), 0 var(--poly)
+  );
+  box-shadow:
+    inset 0 0 48px rgba(255,199,0,0.1),
+    0 8px 28px rgba(0,0,0,0.4);
+  transition:border-color .2s ease, box-shadow .2s ease, color .2s ease;
+}
+.wallet-connect-btn:hover:not(:disabled){
+  color:#fff;
+  border-color:var(--primary);
+  box-shadow:
+    inset 0 0 54px rgba(235,184,0,0.22),
+    0 8px 28px rgba(0,0,0,0.45);
+}
+.wallet-connect-btn:disabled{opacity:0.5;cursor:default;}
+.wallet-connect-btn.is-connected{
+  color:rgba(255,255,255,0.88);
+  border-color:rgba(255,255,255,0.14);
+  box-shadow:
+    inset 0 0 32px rgba(255,255,255,0.04),
+    0 8px 28px rgba(0,0,0,0.4);
+}
+.wallet-connect-btn.is-connected:hover{
+  border-color:rgba(255,199,0,0.45);
+  color:#fff;
+}
+.wallet-connect-btn.is-error{
+  color:#ff8a80;
+  border-color:rgba(255,138,128,0.45);
+}
+.wallet-connect-dot{
+  width:9px;height:9px;border-radius:50%;background:var(--primary);flex-shrink:0;
+  box-shadow:0 0 10px rgba(255,199,0,0.55);
+}
+.wallet-connect-edge{
+  position:absolute;width:24px;height:2px;background:var(--primary);pointer-events:none;
+}
+.wallet-connect-edge.tl{top:5px;left:5px;transform:rotate(-45deg);transform-origin:top;translate:-50% 0;}
+.wallet-connect-edge.br{bottom:5px;right:5px;transform:rotate(-45deg);translate:50% 0;}
 
 .skal-hero{
   position:relative;display:flex;flex-direction:column;

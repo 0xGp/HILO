@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import GameLoader from './GameLoader.jsx';
+import WalletConnectButton from './WalletConnectButton.jsx';
 import { VAULT_CA } from './lib/constants.js';
 import './landing.css';
 
@@ -713,7 +713,7 @@ export default function Landing({ onPlay }) {
             Sign In
           </button>
           <div className="skal-mobile-wallet">
-            <ConnectButton chainStatus="icon" showBalance={false} />
+            <WalletConnectButton />
           </div>
         </nav>
       </div>
