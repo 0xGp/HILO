@@ -15,6 +15,34 @@ const LINKS = [
 ];
 
 const HERO_ITALICS = ['higher', 'lower', 'faster', 'deeper'];
+const LOGO_SRC = '/hilo-logo.png';
+const MARQUEE_COUNT = 14;
+
+function LogoMark({ className = '' }) {
+  return (
+    <img
+      src={LOGO_SRC}
+      alt=""
+      className={`hilo-logo-mark${className ? ` ${className}` : ''}`}
+      width={56}
+      height={56}
+      decoding="async"
+    />
+  );
+}
+
+function LogoMarquee() {
+  const items = Array.from({ length: MARQUEE_COUNT }, (_, i) => i);
+  return (
+    <div className="logo-marquee" aria-hidden="true">
+      <div className="logo-marquee-track">
+        {[...items, ...items].map((i) => (
+          <LogoMark key={i} className="logo-marquee-item" />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function StatusPill({ children, className = '', style }) {
   return (
@@ -644,8 +672,8 @@ export default function Landing({ onPlay }) {
       {/* Skal template header */}
       <div className={`skal-header${scrolled || menu ? ' is-scrolled' : ''}`}>
         <header className="skal-header-inner">
-          <a className="skal-logo" href="#hero" aria-label="HILO">
-            HIL<span>O</span>
+          <a className="skal-logo" href="#hero" aria-label="HILO home">
+            <LogoMark />
           </a>
           <nav className="skal-nav" aria-label="Primary">
             {LINKS.map((l) => (
@@ -726,6 +754,8 @@ export default function Landing({ onPlay }) {
           </SkalButton>
         </div>
       </section>
+
+      <LogoMarquee />
 
       <SectionReveal className="why" id="why">
         <Reveal as="p" className="eyebrow">Why <span className="accent">HILO</span></Reveal>

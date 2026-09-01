@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HILO — Project Deck</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap');
+
+    :root {
+      --bg: #000;
+      --fg: #fff;
+      --mute: rgba(255,255,255,0.58);
+      --line: #424242;
+      --primary: #FFC700;
+      --fill: #121212;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: #0a0a0a;
+      color: var(--fg);
+      font-family: 'Geist Mono', ui-monospace, monospace;
+      height: 100%;
+    }
+
+    .deck {
+      height: 100vh;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+    }
+
+    .slide {
+      scroll-snap-align: start;
+      min-height: 100vh;
+      padding: clamp(2rem, 5vw, 4rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      border-bottom: 1px solid var(--line);
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,199,0,0.08), transparent 55%),
+        #000;
+    }
+
+    .slide-num {
+      position: absolute;
+      top: 1.5rem;
+      right: 2rem;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      color: var(--mute);
+      text-transform: uppercase;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--mute);
+      margin-bottom: 1rem;
+    }
+
+    .eyebrow .accent { color: var(--primary); }
+
+    h1 {
+      font-weight: 300;
+      font-size: clamp(2.5rem, 8vw, 4.5rem);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      max-width: 16ch;
+    }
+
+    h1 i {
+      font-style: italic;
+      color: var(--primary);
+      font-weight: 400;
+    }
+
+    h2 {
+      font-weight: 500;
+      font-size: clamp(1.5rem, 4vw, 2.25rem);
+      letter-spacing: -0.01em;
+      margin-bottom: 1.25rem;
+      max-width: 28ch;
+    }
+
+    h2 .accent { color: var(--primary); }
+
+    .lede {
+      color: var(--mute);
+      font-size: clamp(0.9rem, 1.6vw, 1.05rem);
+      line-height: 1.6;
+      max-width: 48ch;
+      margin-top: 1.25rem;
+    }
+
+    .brand {
+      font-size: clamp(1.25rem, 3vw, 1.5rem);
+      letter-spacing: 0.28em;
+      font-weight: 600;
+      margin-bottom: 2rem;
+    }
+
+    .brand span { color: var(--primary); }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1.75rem;
+      max-width: 920px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1.75rem;
+      max-width: 1000px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      background: rgba(18,18,18,0.85);
+      padding: 1.25rem 1.35rem;
+      clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
+    }
+
+    .card .k {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 0.6rem;
+    }
+
+    .card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.45rem;
+    }
+
+    .card p {
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: var(--mute);
+    }
+
+    .stat-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem 2.5rem;
+      margin-top: 2rem;
+    }
+
+    .stat .n {
+      font-size: clamp(2rem, 5vw, 3rem);
+      color: var(--primary);
+      line-height: 1;
+    }
+
+    .stat .l {
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--mute);
+      margin-top: 0.35rem;
+    }
+
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 2rem;
+      font-size: clamp(0.7rem, 1.4vw, 0.85rem);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .flow .step {
+      border: 1px solid var(--line);
+      padding: 0.65rem 0.9rem;
+      background: var(--fill);
+    }
+
+    .flow .step.on {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .flow .arrow { color: var(--mute); }
+
+    table {
+      width: 100%;
+      max-width: 720px;
+      border-collapse: collapse;
+      margin-top: 1.5rem;
+      font-size: 0.85rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.75rem 0.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      color: var(--mute);
+      font-weight: 500;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    td code {
+      font-size: 0.72rem;
+      color: var(--primary);
+      word-break: break-all;
+    }
+
+    .footer-line {
+      position: absolute;
+      bottom: 1.5rem;
+      left: 2rem;
+      right: 2rem;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--mute);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      height: 2rem;
+      padding: 0 0.75rem;
+      border: 1px solid var(--line);
+      background: rgba(38,38,38,0.5);
+      font-size: 0.8rem;
+      color: var(--mute);
+      margin-bottom: 1.25rem;
+    }
+
+    .pill .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 8px rgba(255,199,0,0.5);
+    }
+
+    .nav-hint {
+      position: fixed;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      pointer-events: none;
+    }
+
+    @media (max-width: 720px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .slide { padding: 1.5rem; }
+    }
+
+    @media print {
+      .deck { height: auto; overflow: visible; scroll-snap-type: none; }
+      .slide {
+        min-height: auto;
+        height: 100vh;
+        page-break-after: always;
+        break-after: page;
+      }
+      .nav-hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav-hint">Scroll · 8 slides · Print to PDF</div>
+
+  <div class="deck">
+
+    <!-- 01 -->
+    <section class="slide">
+      <span class="slide-num">01 / 08</span>
+      <div class="brand">HIL<span>O</span></div>
+      <div class="pill"><span class="dot"></span> Project deck · Testnet</div>
+      <h1>Call the <br /><i>rank</i>. Vault the bag.</h1>
+      <p class="lede">
+        Higher-or-lower card play with vaulted buy-ins, a 20-second clock,
+        and an HMAC-committed shoe—on Robinhood Chain Testnet.
+      </p>
+      <div class="footer-line">
+        <span>Whitepaper companion</span>
+        <span>v1.0</span>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section class="slide">
+      <span class="slide-num">02 / 08</span>
+      <p class="eyebrow">What <span class="accent">HILO</span> is</p>
+      <h2>A single loop. No side quests.</h2>
+      <p class="lede">
+        Deposit 1 HILO ($20 peg). Spawn 20 HP. Call higher or lower on the live rank.
+        Extract what you earn—or wipe and leave the bag in the vault.
+      </p>
+      <div class="flow">
+        <span class="step on">Buy-in</span><span class="arrow">→</span>
+        <span class="step">Call</span><span class="arrow">→</span>
+        <span class="step">Score</span><span class="arrow">→</span>
+        <span class="step on">Extract</span>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><div class="n">1</div><div class="l">HILO buy-in</div></div>
+        <div class="stat"><div class="n">20</div><div class="l">Seconds · HP</div></div>
+        <div class="stat"><div class="n">±3</div><div class="l">HP per call</div></div>
+      </div>
+      <div class="footer-line"><span>Product</span><span>HILO</span></div>
+    </section>
+
+    <!-- 03 -->
+    <section class="slide">
+      <span class="slide-num">03 / 08</span>
+      <p class="eyebrow">The <span class="accent">problem</span></p>
+      <h2>Web3 games fail when money or luck is opaque.</h2>
+      <div class="grid-3">
+        <article class="card">
+          <p class="k">01</p>
+          <h3>Hidden RNG</h3>
+          <p>Players cannot verify the shoe. Trust collapses into “the house said so.”</p>
+        </article>
+        <article class="card">
+          <p class="k">02</p>
+          <h3>Custody risk</h3>
+          <p>Admin keys and rescue paths turn every table into a rug surface.</p>
+        </article>
+        <article class="card">
+          <p class="k">03</p>
+          <h3>Friction</h3>
+          <p>Unclear fees and long sessions kill casual first-time wallet users.</p>
+        </article>
+      </div>
+      <div class="footer-line"><span>Context</span><span>Why HILO</span></div>
+    </section>
+
+    <!-- 04 -->
+    <section class="slide">
+      <span class="slide-num">04 / 08</span>
+      <p class="eyebrow">How it <span class="accent">works</span></p>
+      <h2>Vaulted entry. Committed shoe. Player extract.</h2>
+      <div class="grid-2">
+        <article class="card">
+          <p class="k">Economics</p>
+          <h3>20% / 80% at deposit</h3>
+          <p>0.2 HILO to treasury. 0.8 HILO vaulted as player credit. Extract rate: 3 HP = 0.1 HILO.</p>
+        </article>
+        <article class="card">
+          <p class="k">Fairness</p>
+          <h3>HMAC-SHA256 shoe</h3>
+          <p>Seed committed before play. Deck shuffled with HMAC draws. Verified around each call—not Math.random.</p>
+        </article>
+        <article class="card">
+          <p class="k">Clock</p>
+          <h3>20-second match</h3>
+          <p>One clock for the round. Time-up with HP: bank or rebuy. Wipe at 0: rebuy only.</p>
+        </article>
+        <article class="card">
+          <p class="k">Edges</p>
+          <h3>Ace &amp; Two locked</h3>
+          <p>Ace has no higher. Two has no lower. Same rank = miss. Rules stay on the table.</p>
+        </article>
+      </div>
+      <div class="footer-line"><span>Mechanics</span><span>Readable loop</span></div>
+    </section>
+
+    <!-- 05 -->
+    <section class="slide">
+      <span class="slide-num">05 / 08</span>
+      <p class="eyebrow">Web3 <span class="accent">benefit</span></p>
+      <h2>What HILO gives the ecosystem.</h2>
+      <div class="grid-2">
+        <article class="card">
+          <p class="k">UX pattern</p>
+          <h3>Consumer clarity</h3>
+          <p>A full money loop in one sentence—reusable for casual games on new L2s.</p>
+        </article>
+        <article class="card">
+          <p class="k">Fees</p>
+          <h3>Transparent surface</h3>
+          <p>Fixed buy-in split. No mid-hand rake. Auditable constants and contracts.</p>
+        </article>
+        <article class="card">
+          <p class="k">RNG literacy</p>
+          <h3>Commit &amp; shuffle</h3>
+          <p>Raises the bar for “provably fair” storytelling players can actually follow.</p>
+        </article>
+        <article class="card">
+          <p class="k">Chain</p>
+          <h3>Testnet activation</h3>
+          <p>Real wallet, gas, explorer traffic for Robinhood Chain’s gaming vertical.</p>
+        </article>
+        <article class="card">
+          <p class="k">Custody</p>
+          <h3>Vault discipline</h3>
+          <p>Extract is user-initiated. Wipe forfeits by rule—not silent admin drain.</p>
+        </article>
+        <article class="card">
+          <p class="k">Builders</p>
+          <h3>Forkable primitives</h3>
+          <p>Entry unit, fee BPS, HP↔token rate, vault credit—portable to other skill games.</p>
+        </article>
+      </div>
+      <div class="footer-line"><span>Ecosystem</span><span>Why it matters</span></div>
+    </section>
+
+    <!-- 06 -->
+    <section class="slide">
+      <span class="slide-num">06 / 08</span>
+      <p class="eyebrow">Token <span class="accent">economics</span></p>
+      <h2>Parameters you can read in one table.</h2>
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Peg</td><td>$20 / HILO</td></tr>
+          <tr><td>Buy-in</td><td>1 HILO</td></tr>
+          <tr><td>Treasury fee</td><td>20% (0.2 HILO)</td></tr>
+          <tr><td>Vaulted</td><td>80% (0.8 HILO)</td></tr>
+          <tr><td>Start HP</td><td>20</td></tr>
+          <tr><td>Hit / miss</td><td>±3 HP</td></tr>
+          <tr><td>Extract</td><td>3 HP = 0.1 HILO</td></tr>
+          <tr><td>Match clock</td><td>20 seconds</td></tr>
+        </tbody>
+      </table>
+      <div class="footer-line"><span>Economics</span><span>Testnet</span></div>
+    </section>
+
+    <!-- 07 -->
+    <section class="slide">
+      <span class="slide-num">07 / 08</span>
+      <p class="eyebrow">Contracts &amp; <span class="accent">network</span></p>
+      <h2>Live on Robinhood Chain Testnet.</h2>
+      <table>
+        <thead>
+          <tr><th>Role</th><th>Address</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>HILO token</td><td><code>0x19E1BE6480364b81ec0B6E5919c2EfaBe55ABE54</code></td></tr>
+          <tr><td>Vault</td><td><code>0xF16d0fFF51DeFfB3A2c3542661183d4A06c7f5Be</code></td></tr>
+          <tr><td>Fee recipient</td><td><code>0x974aB06E37dfD2d27FAc09c0E6194d2E13042DcC</code></td></tr>
+        </tbody>
+      </table>
+      <div class="stat-row">
+        <div class="stat"><div class="n">46630</div><div class="l">Chain ID</div></div>
+        <div class="stat"><div class="n">Solidity</div><div class="l">0.8.24 · Foundry</div></div>
+        <div class="stat"><div class="n">React</div><div class="l">Vite · wagmi · viem</div></div>
+      </div>
+      <div class="footer-line"><span>Infrastructure</span><span>Testnet</span></div>
+    </section>
+
+    <!-- 08 -->
+    <section class="slide">
+      <span class="slide-num">08 / 08</span>
+      <p class="eyebrow">Close</p>
+      <h1>Readable play.<br /><i>Vaulted</i> money.</h1>
+      <p class="lede">
+        HILO is a tight consumer game for web3: custody you can audit, fees you can see,
+        fairness you can explain, and a loop short enough to finish in twenty seconds.
+      </p>
+      <div class="flow" style="margin-top:2.5rem">
+        <span class="step on">docs/WHITEPAPER.md</span>
+        <span class="arrow">·</span>
+        <span class="step on">docs/PROJECT-BRIEF.md</span>
+        <span class="arrow">·</span>
+        <span class="step on">docs/deck.html</span>
+      </div>
+      <div class="footer-line">
+        <span>HIL<span style="color:var(--primary)">O</span></span>
+        <span>Call the rank</span>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

@@ -663,8 +663,9 @@ export default function App() {
                 type="button"
                 className="game-brand"
                 onClick={() => { setGameMenu(false); resetTable(); setView('landing'); }}
+                aria-label="HILO home"
               >
-                HIL<span className="brand-mark">O</span>
+                <img src="/hilo-logo.png" alt="" className="hilo-logo-mark game-logo-mark" width={56} height={56} decoding="async" />
               </button>
               <div className="game-nav-mid game-hide-sm">
                 <div className="round-badge">Round #<span>{round || '—'}</span></div>
