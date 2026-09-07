@@ -766,14 +766,7 @@ export default function Landing({ onPlay }) {
             <AccentText text="A table you can read." marks={['read']} />
           </Reveal>
           <div className="why-stage">
-            <Reveal className="why-vault zoom-card" delay={80}>
-              <LockPanel
-                size="lg"
-                label="VAULT LOCKED"
-                code={shortCa(VAULT_CA, 10, 8)}
-                sub="TOKENS IN · EXTRACT OUT"
-              />
-            </Reveal>
+
             <Reveal as="article" className="float-card left zoom-card" delay={200}>
               <div className="float-card-lock" aria-hidden="true"><LockIcon /></div>
               <h3><AccentText text="Closed vault" marks={['vault']} /></h3>
