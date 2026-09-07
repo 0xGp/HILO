@@ -2,7 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import GameLoader from './GameLoader.jsx';
 import WalletConnectButton from './WalletConnectButton.jsx';
-import { VAULT_CA } from './lib/constants.js';
+import { HILO_CA, VAULT_CA } from './lib/constants.js';
+import WhitepaperModal from './components/WhitepaperModal.jsx';
 import './landing.css';
 
 const GL = lazy(() => import('./components/gl/index.jsx').then((m) => ({ default: m.GL })));
@@ -11,6 +12,7 @@ const LINKS = [
   { href: '#why', label: 'About' },
   { href: '#play', label: 'Play' },
   { href: '#about', label: 'Table' },
+  { href: '#whitepaper', label: 'Whitepaper' },
   { href: '#faq', label: 'Contact' }
 ];
 
@@ -509,7 +511,7 @@ function DeckSlider({ size = 'hero', interactive = false }) {
     const onKey = (e) => { if (e.key === 'Escape') close(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expanded]);
 
   useEffect(() => () => {
@@ -623,6 +625,7 @@ export default function Landing({ onPlay }) {
   const [hovering, setHovering] = useState(false);
   const [slide, setSlide] = useState(0);
   const [faq, setFaq] = useState(0);
+  const [wpOpen, setWpOpen] = useState(false);
   const touchX = useRef(null);
 
   const finishBoot = useCallback(() => {
@@ -719,230 +722,285 @@ export default function Landing({ onPlay }) {
       </div>
 
       <CrypticZone className="lp-body">
-      {/* Skal template hero */}
-      <section className="skal-hero" id="hero">
-        <div className="skal-hero-copy hero-enter">
-          <StatusPill className="mb-6 hero-enter-item" style={{ '--d': '80ms' }}>LIVE TABLE</StatusPill>
-          <h1 className="skal-hero-title hero-enter-item" style={{ '--d': '180ms' }}>
-            Call the
-            <br />
-            <i key={italic}>{italic}</i>
-            {' '}
-            rank
-          </h1>
-          <p className="skal-hero-lede hero-enter-item" style={{ '--d': '320ms' }}>
-            Through committed shoes and vaulted buy-ins that keep every call on-chain
-          </p>
-          <SkalButton
-            className="skal-hero-cta hide-sm hero-enter-item"
-            style={{ '--d': '460ms' }}
-            onMouseEnter={() => setHovering(true)}
-            onMouseLeave={() => setHovering(false)}
-            onClick={onPlay}
-          >
-            [Enter match]
-          </SkalButton>
-          <SkalButton
-            size="sm"
-            className="skal-hero-cta show-sm hero-enter-item"
-            style={{ '--d': '460ms' }}
-            onMouseEnter={() => setHovering(true)}
-            onMouseLeave={() => setHovering(false)}
-            onClick={onPlay}
-          >
-            [Enter match]
-          </SkalButton>
-        </div>
-      </section>
-
-      <LogoMarquee />
-
-      <SectionReveal className="why" id="why">
-        <Reveal as="p" className="eyebrow">Why <span className="accent">HILO</span></Reveal>
-        <Reveal as="h2" delay={70}>
-          <AccentText text="A table you can read." marks={['read']} />
-        </Reveal>
-        <div className="why-stage">
-          <Reveal className="why-vault zoom-card" delay={80}>
-            <LockPanel
-              size="lg"
-              label="VAULT LOCKED"
-              code={shortCa(VAULT_CA, 10, 8)}
-              sub="TOKENS IN · EXTRACT OUT"
-            />
-          </Reveal>
-          <Reveal as="article" className="float-card left zoom-card" delay={200}>
-            <div className="float-card-lock" aria-hidden="true"><LockIcon /></div>
-            <h3><AccentText text="Closed vault" marks={['vault']} /></h3>
-            <p>Tokens leave only when you extract. A wipe keeps the bag in the house.</p>
-          </Reveal>
-          <Reveal as="article" className="float-card right zoom-card" delay={320}>
-            <div className="float-card-lock" aria-hidden="true"><LockIcon /></div>
-            <h3><AccentText text="Committed shoe" marks={['shoe']} /></h3>
-            <p>HMAC shuffle, locked before the call. The next rank is not a browser roll.</p>
-          </Reveal>
-        </div>
-        <Reveal as="p" className="lede tight" delay={180}>
-          Same loop every round: <span className="accent">buy-in</span>, call, score, <span className="accent">extract</span>.
-        </Reveal>
-        <Reveal delay={220}>
-          <button className="btn-ink" type="button" onClick={onPlay}>Start a round</button>
-        </Reveal>
-      </SectionReveal>
-
-      <SectionReveal className="bento" id="about">
-        <Reveal as="p" className="eyebrow">The <span className="accent">match</span></Reveal>
-        <Reveal as="h2" className="fade-title" delay={60}>
-          <AccentText text="Built as one loop. No side quests." marks={['loop', 'quests']} />
-        </Reveal>
-        <Reveal as="p" className="lede fade-title" delay={140}>
-          Buy-in, call, clock, extract. Deck on the table. Rules in the open.
-        </Reveal>
-        <div className="bento-row">
-          {BENTO.map((c, i) => (
-            <Reveal
-              key={c.title}
-              as="article"
-              className={`bento-card zoom-card${c.featured ? ' featured' : ''}`}
-              delay={120 + i * 140}
+        {/* Skal template hero */}
+        <section className="skal-hero" id="hero">
+          <div className="skal-hero-copy hero-enter">
+            <StatusPill className="mb-6 hero-enter-item" style={{ '--d': '80ms' }}>0x19E1BE6480364b81ec0B6E5919c2EfaBe55ABE54</StatusPill>
+            <h1 className="skal-hero-title hero-enter-item" style={{ '--d': '180ms' }}>
+              Call the
+              <br />
+              <i key={italic}>{italic}</i>
+              {' '}
+              rank
+            </h1>
+            <p className="skal-hero-lede hero-enter-item" style={{ '--d': '320ms' }}>
+              Through committed shoes and vaulted buy-ins that keep every call on-chain
+            </p>
+            <SkalButton
+              className="skal-hero-cta hide-sm hero-enter-item"
+              style={{ '--d': '460ms' }}
+              onMouseEnter={() => setHovering(true)}
+              onMouseLeave={() => setHovering(false)}
+              onClick={onPlay}
             >
-              <div className="bento-lock-head">
-                <LockIcon />
-                <span className="bento-lock-label">{c.label}</span>
-              </div>
-              {c.stat && (
-                <div className="stat">
-                  {c.stat}
-                  <span>{c.statUnit}</span>
-                </div>
-              )}
-              <code className="bento-code">{c.code}</code>
-              <div className="bento-copy">
-                <h3>{c.title}</h3>
-                <p>{c.body}</p>
-              </div>
+              [Enter match]
+            </SkalButton>
+            <SkalButton
+              size="sm"
+              className="skal-hero-cta show-sm hero-enter-item"
+              style={{ '--d': '460ms' }}
+              onMouseEnter={() => setHovering(true)}
+              onMouseLeave={() => setHovering(false)}
+              onClick={onPlay}
+            >
+              [Enter match]
+            </SkalButton>
+          </div>
+        </section>
+
+        <LogoMarquee />
+
+        <SectionReveal className="why" id="why">
+          <Reveal as="p" className="eyebrow">Why <span className="accent">HILO</span></Reveal>
+          <Reveal as="h2" delay={70}>
+            <AccentText text="A table you can read." marks={['read']} />
+          </Reveal>
+          <div className="why-stage">
+            <Reveal className="why-vault zoom-card" delay={80}>
+              <LockPanel
+                size="lg"
+                label="VAULT LOCKED"
+                code={shortCa(VAULT_CA, 10, 8)}
+                sub="TOKENS IN · EXTRACT OUT"
+              />
             </Reveal>
-          ))}
-        </div>
-      </SectionReveal>
-
-      <SectionReveal className="play" id="play">
-        <Reveal as="p" className="eyebrow">How it <span className="accent">plays</span></Reveal>
-        <Reveal as="h2" delay={70}>
-          <AccentText text="Four plates. One shoe." marks={['plates', 'shoe']} />
-        </Reveal>
-        <Reveal className="carousel zoom-card" delay={120}>
-          <button className="slide-nav prev" type="button" aria-label="Previous" onClick={() => go(-1)}>‹</button>
-          <div
-            className="carousel-viewport"
-            onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
-            onTouchEnd={(e) => {
-              if (touchX.current == null) return;
-              const dx = e.changedTouches[0].clientX - touchX.current;
-              touchX.current = null;
-              if (Math.abs(dx) < 40) return;
-              go(dx < 0 ? 1 : -1);
-            }}
-          >
-            <div
-              className="carousel-track"
-              style={{
-                '--slides': SLIDES.length,
-                transform: `translateX(calc(-100% * ${slide} / ${SLIDES.length}))`
-              }}
-            >
-              {SLIDES.map((s, i) => (
-                <article key={s.title} className={`slide-card${i === slide ? ' active' : ''}`} aria-hidden={i !== slide}>
-                  <div className="slide-visual">
-                    <LockPanel
-                      size="sm"
-                      label={s.label}
-                      code={s.code}
-                      sub={s.sub}
-                    />
-                  </div>
-                  <div className="slide-copy">
-                    <p className="k">0{i + 1} / 0{SLIDES.length}</p>
-                    <h3>{s.title}</h3>
-                    <p>{s.body}</p>
-                    <button className="btn-ink" type="button" onClick={onPlay}>Enter match</button>
-                  </div>
-                </article>
-              ))}
-            </div>
+            <Reveal as="article" className="float-card left zoom-card" delay={200}>
+              <div className="float-card-lock" aria-hidden="true"><LockIcon /></div>
+              <h3><AccentText text="Closed vault" marks={['vault']} /></h3>
+              <p>Tokens leave only when you extract. A wipe keeps the bag in the house.</p>
+            </Reveal>
+            <Reveal as="article" className="float-card right zoom-card" delay={320}>
+              <div className="float-card-lock" aria-hidden="true"><LockIcon /></div>
+              <h3><AccentText text="Committed shoe" marks={['shoe']} /></h3>
+              <p>HMAC shuffle, locked before the call. The next rank is not a browser roll.</p>
+            </Reveal>
           </div>
-          <button className="slide-nav next" type="button" aria-label="Next" onClick={() => go(1)}>›</button>
-        </Reveal>
-        <Reveal className="dots" delay={220} role="tablist">
-          {SLIDES.map((s, i) => (
-            <button
-              key={s.title}
-              type="button"
-              className={i === slide ? 'on' : ''}
-              aria-label={s.title}
-              aria-selected={i === slide}
-              onClick={() => setSlide(i)}
-            />
-          ))}
-        </Reveal>
-      </SectionReveal>
+          <Reveal as="p" className="lede tight" delay={180}>
+            Same loop every round: <span className="accent">buy-in</span>, call, score, <span className="accent">extract</span>.
+          </Reveal>
+          <Reveal delay={220}>
+            <button className="btn-ink" type="button" onClick={onPlay}>Start a round</button>
+          </Reveal>
+        </SectionReveal>
 
-      <SectionReveal className="faq" id="faq">
-        <Reveal className="faq-left">
-          <p className="eyebrow"><span className="accent">FAQ</span></p>
-          <h2><AccentText text="Questions before the deal." marks={['deal']} /></h2>
-          <div className="faq-contact">
-            <div className="faq-contact-lock" aria-hidden="true"><LockIcon /></div>
-            <p>Still unclear? Open a round. The table teaches faster than copy.</p>
-            <button className="btn-ink dark" type="button" onClick={onPlay}>Enter match</button>
-          </div>
-        </Reveal>
-        <div className="faq-right">
-          <ul className="acc">
-            {FAQS.map((item, i) => (
-              <Reveal as="li" key={item.q} delay={80 + i * 70} className="faq-item zoom-card">
-                <button type="button" onClick={() => setFaq(faq === i ? -1 : i)}>
-                  {item.q}
-                  <span>{faq === i ? '–' : '+'}</span>
-                </button>
-                <div className={`acc-body${faq === i ? ' open' : ''}`}>
-                  <p>{item.a}</p>
+        <SectionReveal className="bento" id="about">
+          <Reveal as="p" className="eyebrow">The <span className="accent">match</span></Reveal>
+          <Reveal as="h2" className="fade-title" delay={60}>
+            <AccentText text="Built as one loop. No side quests." marks={['loop', 'quests']} />
+          </Reveal>
+          <Reveal as="p" className="lede fade-title" delay={140}>
+            Buy-in, call, clock, extract. Deck on the table. Rules in the open.
+          </Reveal>
+          <div className="bento-row">
+            {BENTO.map((c, i) => (
+              <Reveal
+                key={c.title}
+                as="article"
+                className={`bento-card zoom-card${c.featured ? ' featured' : ''}`}
+                delay={120 + i * 140}
+              >
+                <div className="bento-lock-head">
+                  <LockIcon />
+                  <span className="bento-lock-label">{c.label}</span>
+                </div>
+                {c.stat && (
+                  <div className="stat">
+                    {c.stat}
+                    <span>{c.statUnit}</span>
+                  </div>
+                )}
+                <code className="bento-code">{c.code}</code>
+                <div className="bento-copy">
+                  <h3>{c.title}</h3>
+                  <p>{c.body}</p>
                 </div>
               </Reveal>
             ))}
-          </ul>
-        </div>
-      </SectionReveal>
+          </div>
+        </SectionReveal>
 
-      <Reveal as="footer" className="foot" delay={60}>
-        <div className="foot-top">
-          <div>
-            <CrypticText as="a" className="brand" href="#hero" label="HILO" />
-            <button className="btn-ink" type="button" onClick={onPlay}>Enter match</button>
+        <SectionReveal className="play" id="play">
+          <Reveal as="p" className="eyebrow">How it <span className="accent">plays</span></Reveal>
+          <Reveal as="h2" delay={70}>
+            <AccentText text="Four plates. One shoe." marks={['plates', 'shoe']} />
+          </Reveal>
+          <Reveal className="carousel zoom-card" delay={120}>
+            <button className="slide-nav prev" type="button" aria-label="Previous" onClick={() => go(-1)}>‹</button>
+            <div
+              className="carousel-viewport"
+              onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
+              onTouchEnd={(e) => {
+                if (touchX.current == null) return;
+                const dx = e.changedTouches[0].clientX - touchX.current;
+                touchX.current = null;
+                if (Math.abs(dx) < 40) return;
+                go(dx < 0 ? 1 : -1);
+              }}
+            >
+              <div
+                className="carousel-track"
+                style={{
+                  '--slides': SLIDES.length,
+                  transform: `translateX(calc(-100% * ${slide} / ${SLIDES.length}))`
+                }}
+              >
+                {SLIDES.map((s, i) => (
+                  <article key={s.title} className={`slide-card${i === slide ? ' active' : ''}`} aria-hidden={i !== slide}>
+                    <div className="slide-visual">
+                      <LockPanel
+                        size="sm"
+                        label={s.label}
+                        code={s.code}
+                        sub={s.sub}
+                      />
+                    </div>
+                    <div className="slide-copy">
+                      <p className="k">0{i + 1} / 0{SLIDES.length}</p>
+                      <h3>{s.title}</h3>
+                      <p>{s.body}</p>
+                      <button className="btn-ink" type="button" onClick={onPlay}>Enter match</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+            <button className="slide-nav next" type="button" aria-label="Next" onClick={() => go(1)}>›</button>
+          </Reveal>
+          <Reveal className="dots" delay={220} role="tablist">
+            {SLIDES.map((s, i) => (
+              <button
+                key={s.title}
+                type="button"
+                className={i === slide ? 'on' : ''}
+                aria-label={s.title}
+                aria-selected={i === slide}
+                onClick={() => setSlide(i)}
+              />
+            ))}
+          </Reveal>
+        </SectionReveal>
+
+        <SectionReveal className="whitepaper-section" id="whitepaper">
+          <Reveal as="p" className="eyebrow">The <span className="accent">thesis</span></Reveal>
+          <Reveal as="h2" delay={60}>
+            <AccentText text="Read the Whitepaper." marks={['Whitepaper']} />
+          </Reveal>
+          <Reveal as="p" className="lede" delay={120}>
+            The full product thesis — committed shoes, vaulted buy-ins, transparent fees, and how HILO shows a concrete path for consumer games on L2-style chains.
+          </Reveal>
+          <div className="wp-cards">
+            <Reveal as="article" className="wp-card zoom-card" delay={100}>
+              <div className="wp-card-icon">📐</div>
+              <h3>One loop. No side quests.</h3>
+              <p>Deposit → call → extract. Every step is auditable in constants and contracts.</p>
+            </Reveal>
+            <Reveal as="article" className="wp-card zoom-card" delay={180}>
+              <div className="wp-card-icon">🔒</div>
+              <h3>Committed shoe</h3>
+              <p>HMAC-SHA256 shuffle committed before the call. The next rank is not a naked <code>Math.random()</code>.</p>
+            </Reveal>
+            <Reveal as="article" className="wp-card zoom-card" delay={260}>
+              <div className="wp-card-icon">🏦</div>
+              <h3>Non-custodial vault</h3>
+              <p>80% vaulted. Extract is user-initiated. No hidden rake. No admin backdoor.</p>
+            </Reveal>
+            <Reveal as="article" className="wp-card zoom-card" delay={340}>
+              <div className="wp-card-icon">⛓️</div>
+              <h3>Chain activation</h3>
+              <p>Real wallet flows — approve, deposit, withdraw, gas — on Robinhood Chain Testnet without a full DeFi stack.</p>
+            </Reveal>
           </div>
-          <div>
-            <h4>Play</h4>
-            <a href="#hero">Home</a>
-            <a href="#play">How it plays</a>
-            <a href="#faq">FAQ</a>
+          <Reveal delay={300} className="wp-cta-row">
+            <button
+              className="btn-ink wp-read-btn"
+              type="button"
+              onClick={() => setWpOpen(true)}
+            >
+              Read full whitepaper ↗
+            </button>
+          </Reveal>
+        </SectionReveal>
+
+        {wpOpen && <WhitepaperModal onClose={() => setWpOpen(false)} />}
+
+        <SectionReveal className="faq" id="faq">
+          <Reveal className="faq-left">
+            <p className="eyebrow"><span className="accent">FAQ</span></p>
+            <h2><AccentText text="Questions before the deal." marks={['deal']} /></h2>
+            <div className="faq-contact">
+              <div className="faq-contact-lock" aria-hidden="true"><LockIcon /></div>
+              <p>Still unclear? Open a round. The table teaches faster than copy.</p>
+              <button className="btn-ink dark" type="button" onClick={onPlay}>Enter match</button>
+            </div>
+          </Reveal>
+          <div className="faq-right">
+            <ul className="acc">
+              {FAQS.map((item, i) => (
+                <Reveal as="li" key={item.q} delay={80 + i * 70} className="faq-item zoom-card">
+                  <button type="button" onClick={() => setFaq(faq === i ? -1 : i)}>
+                    {item.q}
+                    <span>{faq === i ? '–' : '+'}</span>
+                  </button>
+                  <div className={`acc-body${faq === i ? ' open' : ''}`}>
+                    <p>{item.a}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </ul>
           </div>
-          <div>
-            <h4>Table</h4>
-            <a href="#why">Vault</a>
-            <a href="#why">Shoe</a>
-            <a href="#about">Clock</a>
+        </SectionReveal>
+
+        <Reveal as="footer" className="foot" delay={60}>
+          <div className="foot-top">
+            <div>
+              {/* <div className="token-ca-pill">
+              <span className="token-ca-label">TOKEN CA</span>
+              <span className="token-ca-address">{HILO_CA}</span>
+              <button
+                className="token-ca-copy"
+                type="button"
+                onClick={() => { navigator.clipboard.writeText(HILO_CA); }}
+                title="Copy contract address"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div> */}
+              <CrypticText as="a" className="brand" href="#hero" label="HILO" />
+              <button className="btn-ink" type="button" onClick={onPlay}>Enter match</button>
+            </div>
+            <div>
+              <h4>Play</h4>
+              <a href="#hero">Home</a>
+              <a href="#play">How it plays</a>
+              <a href="#faq">FAQ</a>
+            </div>
+            <div>
+              <h4>Table</h4>
+              <a href="#why">Vault</a>
+              <a href="#why">Shoe</a>
+              <a href="#about">Clock</a>
+            </div>
+            <div>
+              <h4>Network</h4>
+              <p>Robinhood Chain Testnet</p>
+              <p>1 HILO = $20</p>
+            </div>
           </div>
-          <div>
-            <h4>Network</h4>
-            <p>Robinhood Chain Testnet</p>
-            <p>1 HILO = $20</p>
+          <div className="foot-bot">
+            <span>On-chain · Robinhood Chain Testnet</span>
+            <a href="#hero">Back to top ↑</a>
           </div>
-        </div>
-        <div className="foot-bot">
-          <span>On-chain · Robinhood Chain Testnet</span>
-          <a href="#hero">Back to top ↑</a>
-        </div>
-      </Reveal>
+        </Reveal>
       </CrypticZone>
     </div>
   );
