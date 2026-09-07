@@ -1268,9 +1268,7 @@
 .logo-marquee{
   position:relative;z-index:1;
   width:100%;overflow:hidden;
-  border-top:1px solid var(--line);
-  border-bottom:1px solid var(--line);
-  background:rgba(0,0,0,0.35);
+  background:transparent;
   padding:1.35rem 0;
   mask-image:linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
 }
@@ -1281,8 +1279,8 @@
   will-change:transform;
 }
 .logo-marquee-item{
-  width:clamp(44px,5.5vw,56px);
-  height:clamp(44px,5.5vw,56px);
+  width:clamp(64px, 8vw, 84px);
+  height:clamp(64px, 8vw, 84px);
   opacity:0.92;
   flex-shrink:0;
   filter:drop-shadow(0 0 16px rgba(255,255,255,0.1));
