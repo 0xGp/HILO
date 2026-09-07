@@ -725,7 +725,7 @@ export default function Landing({ onPlay }) {
         {/* Skal template hero */}
         <section className="skal-hero" id="hero">
           <div className="skal-hero-copy hero-enter">
-            <StatusPill className="mb-6 hero-enter-item" style={{ '--d': '80ms' }}>Live on Robinhood Chain </StatusPill>
+            <StatusPill className="mb-6 hero-enter-item" style={{ '--d': '80ms' }}> 0xad764dbcf4e51cb27e159c9aa6d2fd8f7e22f26e</StatusPill>
             <h1 className="skal-hero-title hero-enter-item" style={{ '--d': '180ms' }}>
               Call the
               <br />
